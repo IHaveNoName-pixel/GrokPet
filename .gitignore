@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.runtime/
+artifacts/
+*.log
+native/**/bin/
+native/**/obj/
