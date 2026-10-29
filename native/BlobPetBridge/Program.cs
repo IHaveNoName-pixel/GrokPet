@@ -21,11 +21,23 @@ internal static class Program
     {
         try
         {
+            if(args.Length>0 && args[0].StartsWith("chrome-extension://",StringComparison.Ordinal)){BrowserNativeHost.Run(args);return;}
             if (!string.IsNullOrEmpty(Arg(args, "--channel"))) channel = Arg(args, "--channel");
             if (!Regex.IsMatch(channel, "^[a-zA-Z0-9]{1,32}$")) throw new ArgumentException("Invalid pipe channel");
             if (int.TryParse(Arg(args, "--parent"), out int parent))
                 _ = Task.Run(async () => { try { await Process.GetProcessById(parent).WaitForExitAsync(); } catch { } Environment.Exit(0); });
             if (args.Contains("hook")) { Relay(args); return; }
+            if(args.Contains("--hook-probe")){
+                using var fixtures=JsonDocument.Parse(Console.In.ReadToEnd());
+                Emit(fixtures.RootElement.EnumerateArray().Select(d=>HookEvent.Normalize(d,d.GetProperty("hook_event_name").GetString()??"")).ToArray());return;
+            }
+            if(args.Contains("--quick-choice")){Task.Run(()=>QuickChoices.Run(Arg(args,"--quick-choice"),Arg(args,"--value"))).GetAwaiter().GetResult();return;}
+            if(args.Contains("--quick-control")){Task.Run(()=>QuickControls.Run(Arg(args,"--quick-control"),Arg(args,"--value"))).GetAwaiter().GetResult();return;}
+            if(args.Contains("--master-volume")){MasterVolume.Run(Arg(args,"--master-volume"));return;}
+            if(args.Contains("--audio-peak")||args.Contains("--audio-peak-once")){Task.Run(()=>AudioPeak.Run(args.Contains("--audio-peak-once"))).GetAwaiter().GetResult();return;}
+            if(args.Contains("--transfer-probe")){Task.Run(()=>TransferProbe.Run(args)).GetAwaiter().GetResult();return;}
+            if(args.Contains("--media-command")){Task.Run(()=>MediaMonitor.Control(Arg(args,"--media-command"))).GetAwaiter().GetResult();return;}
+            if (args.Contains("--media") || args.Contains("--media-once")) { Task.Run(()=>MediaMonitor.Run(args.Contains("--media-once"))).GetAwaiter().GetResult(); return; }
             if (args.Contains("--metrics"))
             {
                 _ = Task.Run(Listen);
@@ -86,9 +98,7 @@ internal static class Program
             {
                 using var data = JsonDocument.Parse(raw);
                 var d = data.RootElement;
-                string Value(string name) => d.TryGetProperty(name, out var p) && p.ValueKind == JsonValueKind.String ? p.GetString() ?? "" : "";
-                string text = Value("last_assistant_message");
-                var payload = new { kind = "codex", @event = Arg(args, "--event"), session = Value("session_id"), turn = Value("turn_id"), message = text[..Math.Min(text.Length, 240)] };
+                var payload=HookEvent.Normalize(d,Arg(args,"--event"));
                 using var pipe = new NamedPipeClientStream(".", PipeName, PipeDirection.Out, PipeOptions.Asynchronous);
                 pipe.Connect(250);
                 using var writer = new StreamWriter(pipe); writer.WriteLine(JsonSerializer.Serialize(payload, Json));

@@ -1,0 +1,6 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');const {radialBounds}=require('../desktop/radial-window.cjs');
+test('radial window stays inside work areas at corners, negative monitors and small screens',()=>{for(const a of [{x:0,y:0,width:1920,height:1032},{x:-1920,y:-100,width:1536,height:864},{x:0,y:0,width:640,height:480}])for(const x of [a.x-180,a.x+a.width-180])for(const y of [a.y-216,a.y+a.height-216]){const b=radialBounds({x,y},a);assert.ok(b.x>=a.x&&b.y>=a.y);assert.ok(b.x+b.width<=a.x+a.width&&b.y+b.height<=a.y+a.height);}});
+
+test('original pet hit target follows expanded center without changing ordinary hit testing',()=>{const {hitTest}=require('../desktop/core.js');assert.equal(hitTest({x:380,y:325},{width:760,petY:325},128),true);assert.equal(hitTest({x:380,y:216},{width:760,petY:325},128),false);assert.equal(hitTest({x:180,y:216},{width:360},128),true);});
+
+test('native radial movement easing is bounded and monotonic with the CSS timing endpoints',()=>{const {radialEase}=require('../desktop/radial-window.cjs');assert.equal(radialEase(0),0);assert.equal(radialEase(1),1);let last=0;for(let i=0;i<=100;i++){const v=radialEase(i/100);assert.ok(v>=last&&v<=1);last=v;}});

@@ -1,0 +1,1 @@
+const control=document.getElementById('enabled');chrome.storage.local.get({enabled:true}).then(v=>control.checked=v.enabled);control.addEventListener('change',()=>chrome.storage.local.set({enabled:control.checked}));

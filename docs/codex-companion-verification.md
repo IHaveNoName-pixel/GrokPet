@@ -1,4 +1,4 @@
-# Codex 桌宠助手 0.2 验证记录
+# Codex 桌宠助手 0.3 验证记录
 
 2026-10-27，Windows x64，Electron 41.10.6，.NET 10，Codex CLI 0.154.0。
 
@@ -14,7 +14,7 @@
 
 ## 实测证据
 
-- `node --test tests/*.test.cjs`：20/20通过。
+- `node --test tests/*.test.cjs`：23/23通过。
 - `dotnet build native/BlobPetBridge/BlobPetBridge.csproj -c Release -o .runtime/bridge -p:NuGetAudit=false --no-restore`：0警告、0错误。
 - `node scripts/smoke.cjs --packaged`：完整最终EXE验证通过，含第一版互动/漫游/睡眠/位置恢复、第二版实际官方额度RPC、真实系统指标、隔离面板、实际native hook→管道→主进程→中文摘要气泡。
 - 高负载动画通过注入模拟99% CPU样本并断言渲染状态scared验证；没有真实压测电脑。
@@ -25,6 +25,10 @@
 JSON报告和面板图片由自检写入`artifacts/`（打包自检时位于resources/app/artifacts），整理后保留于项目根artifacts目录。
 
 ## 验证边界
+
+0.3增量实测：14/16px字号，六项内容筛选，hover移入移出、永久显示、永久隐藏、全关闭、四种宠物尺寸文字框边界、跨进程恢复HUD设置全部通过。面板与托盘新增开机启动开关，实际读取系统启动项状态并验证无效IPC拒绝；未自动开启启动项，也未重启电脑验证登录启动。启动项适配器单测验证只在用户操作时写入当前EXE路径。
+
+网络恢复诊断中确认代理端口和TUN运行，存在间歇性ECONNRESET/响应体截断；切换两条备用路径未通过完整响应测试，已恢复原手选节点并清理49条陈旧低流量Codex连接。没有改订阅、节点凭据、DNS、MTU或关闭证书验证。公开Codex端点可达不等于认证生成流已彻底稳定，网络根因未最终证实。
 
 没有读取真实Windows通知内容，也没有代用户点击系统授权。仅构建并检查权限状态，状态返回Allowed，但仍保持默认关闭。真实第三方新通知端到端转发需要用户在面板启用后验收；不同Windows应用身份/隐私配置可能影响可用性。
 

@@ -1,9 +1,72 @@
 'use strict';
 const $ = id => document.getElementById(id);
+for(const button of document.querySelectorAll('[data-section]'))button.addEventListener('click',()=>document.getElementById(button.dataset.section)?.scrollIntoView({block:'start'}));
 const speed = n => n === null || n === undefined ? '—' : n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB/s' : (n / 1024).toFixed(1) + ' KB/s';
 const time = n => n ? new Date(n).toLocaleString('zh-CN') : '尚未更新';
+const hudKeys = ['codex','network','vpn','cpu','memory','gpu','music'];
+function displaySettings(s) {
+  if (!s) return;
+  $('pet-name').value=s.personality.name;$('pet-activity').value=s.personality.activity;$('pet-schedule').checked=s.personality.scheduleEnabled;$('pet-sleep').value=s.personality.sleepAt;$('pet-wake').value=s.personality.wakeAt;
+  $('hud-mode').value = s.hudMode;
+  $('focus-minutes').value=s.focusMinutes;$('focus-visual').value=s.focusVisual;for(const k of ['cpu','memory','gpu','seconds'])$('load-'+k).value=s.loadThresholds[k];
+  for(const k of ['music','transfer','toolbar','system','focus','load'])$('dock-'+k).checked=s.dockItems?.[k]!==false;
+  $('hud-font').value = String(s.hudFontSize);
+  for (const key of hudKeys) $('hud-'+key).checked = !!s.hudItems?.[key];
+  for (const key of hudKeys.filter(k=>k!=='music')) $('summary-'+key).checked=!!s.summaryItems?.[key];
+  $('summary-order').value=(s.summaryOrder||[]).join(', ');$('summary-max').value=s.summaryMax||12;
+  for(const key of ['edge','chrome','thunder','baidu','install'])$('transfer-'+key).checked=!!s.transferSources?.[key];
+  $('start-at-login').checked = !!s.startup?.enabled;
+  $('startup-status').textContent = s.startup?.enabled ? '已启用，将使用当前程序路径启动' : s.startup?.registered ? '启动项已注册，但已被 Windows 禁用' : '未启用开机启动';
+  $('music-enabled').checked=!!s.musicEnabled;$('music-bubbles').checked=!!s.musicBubbles;$('music-lyrics').checked=!!s.musicLyrics;
+}
+async function saveDisplay() {
+  try {
+    const patch = {dockItems:Object.fromEntries(['music','transfer','toolbar','system','focus','load'].map(k=>[k,$('dock-'+k).checked])),hudMode:$('hud-mode').value,hudFontSize:Number($('hud-font').value),hudItems:Object.fromEntries(hudKeys.map(k=>[k,$('hud-'+k).checked])),summaryOrder:$('summary-order').value.split(/[,，\s]+/).filter(Boolean),summaryMax:Number($('summary-max').value),summaryItems:Object.fromEntries(hudKeys.filter(k=>k!=='music').map(k=>[k,$('summary-'+k).checked]))};
+    const result = await window.pet.hudSettings(patch);
+    $('display-feedback').textContent = result.error || '显示设置已保存';
+  } catch (e) {$('display-feedback').textContent=e.message;}
+}
+for (const id of [...['music','transfer','toolbar','system','focus','load'].map(k=>'dock-'+k),'hud-mode','hud-font','summary-order','summary-max',...hudKeys.map(k=>'hud-'+k),...hudKeys.filter(k=>k!=='music').map(k=>'summary-'+k)]) $(id).addEventListener('change',saveDisplay);
+const transferKeys=['edge','chrome','thunder','baidu','install'];
+for(const key of transferKeys)$('transfer-'+key).addEventListener('change',async()=>{const r=await window.pet.transferSettings(Object.fromEntries(transferKeys.map(k=>[k,$('transfer-'+k).checked])));$('transfer-feedback').textContent=r.error||'联动设置已保存';});
+$('browser-bridge-setup').addEventListener('click',async()=>{const r=await window.pet.companion('browser-bridge-setup');$('transfer-feedback').textContent=r.error||'桥接已注册，请在浏览器加载打开的扩展目录';});
+$('start-at-login').addEventListener('change',async()=>{
+  const control=$('start-at-login');control.disabled=true;
+  try {const r=await window.pet.startup(control.checked);$('display-feedback').textContent=r.error||'开机启动设置已更新';displaySettings(await window.pet.ready());}
+  catch(e){$('display-feedback').textContent=e.message;}
+  finally{control.disabled=false;}
+});
+window.pet.onSettings(displaySettings);window.pet.ready().then(displaySettings);
+for(const id of ['music-enabled','music-bubbles','music-lyrics'])$(id).addEventListener('change',async()=>{
+  try{const r=await window.pet.musicSettings({musicEnabled:$('music-enabled').checked,musicBubbles:$('music-bubbles').checked,musicLyrics:$('music-lyrics').checked});$('music-feedback').textContent=r.error||'音乐设置已保存';}catch(e){$('music-feedback').textContent=e.message;}
+});
+$('lyrics-import').addEventListener('click',async()=>{
+  try{const r=await window.pet.companion('lyrics-import');$('music-feedback').textContent=r.error||'歌词选择已完成';}catch(e){$('music-feedback').textContent=e.message;}
+});
+$('music-sync').addEventListener('click',async()=>{
+  const value=$('music-sync-time').value.trim();let seconds;
+  const match=value.match(/^(\d+):([0-5]\d)(?:\.(\d{1,3}))?$/);
+  if(match)seconds=Number(match[1])*60+Number(match[2])+Number((match[3]||'').padEnd(3,'0'))/1000;
+  else seconds=value!==''?Number(value):NaN;
+  if(!Number.isFinite(seconds)||seconds<0||seconds>86400){$('music-feedback').textContent='请输入有效的分:秒或秒数';return;}
+  const r=await window.pet.musicCalibrate(seconds*1000);$('music-feedback').textContent=r.error||'已按手动时间同步；播放器跳转后请重新校准';
+});
+$('music-sync-clear').addEventListener('click',async()=>{const r=await window.pet.musicCalibrate(null);$('music-feedback').textContent=r.error||'已清除手动校准';});
+function renderMusic(m){
+  const state=({playing:'正在播放',paused:'已暂停',stopped:'已停止',opened:'已就绪',changing:'正在切换'})[m.state]||'等待播放';
+  $('music-status').textContent=m.status==='ready'?state:(m.reason||'等待网易云音乐');
+  $('music-track').textContent=m.title||'';$('music-artist').textContent=m.artist?m.artist+(m.album?' · '+m.album:''):'';
+  const clock=ms=>{const s=Math.floor(ms/1000);return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');};
+  $('music-progress').hidden=typeof m.percent!=='number';if(typeof m.percent==='number')$('music-progress').value=m.percent;
+  $('music-time').textContent=m.timelineSource==='manual'?'手动同步 · '+clock(m.positionMs)+'（非播放器真实进度）':m.timelineSource==='system'?clock(m.positionMs)+' / '+clock(m.durationMs)+' · 播放器时间轴':'网易云未提供时间轴；可导入LRC后手动校准';
+  $('lyrics-status').textContent=m.lyricsName?'本地歌词：'+m.lyricsName+(m.lyric?.text?'\n当前：'+m.lyric.text:''):'尚未为当前歌曲导入本地歌词';
+  $('lyrics-import').disabled=!m.trackKey;$('music-sync').disabled=!m.trackKey||m.timelineSource==='system';
+  $('music-sync-clear').disabled=m.timelineSource!=='manual';
+}
 function render(s) {
   if (!s) return;
+  renderMusic(s.media||{});
+  const statuses=s.transfers?.status||{};$('transfer-source-status').textContent=transferKeys.map(k=>({edge:'Edge',chrome:'Chrome',thunder:'迅雷',baidu:'百度网盘',install:'安装'})[k]+'：'+(statuses[k]||'未启用')).join(' · ');
   const q = s.quota;
   $('quota').replaceChildren();
   if (q.status !== 'ready') $('quota').textContent = q.status === 'error' ? q.error : '正在连接 Codex…';
@@ -18,7 +81,7 @@ function render(s) {
     const reset = document.createElement('div'); reset.className = 'muted'; reset.textContent = '重置：' + time(w.resetsAt ? w.resetsAt * 1000 : null); row.append(reset); $('quota').append(row);
   }
   $('quota-time').textContent = '更新：' + time(q.updatedAt) + ' · 每 60 秒刷新';
-  $('activity').textContent = ({ working: 'Codex 正在工作', alerting: 'Codex 需要你处理', celebrate: '任务刚刚完成' })[s.activity] || (s.hooks ? '未观察到运行中任务' : '尚未接入工作状态');
+  $('activity').textContent = ({thinking:'Codex 正在分析或等待下一步',searching:'Codex 正在搜索',writing:'Codex 正在修改文件',working:'Codex 正在执行工具',alerting:'Codex 需要你处理',confused:'刚刚观察到工具失败',sad:'本轮结束，最后工具状态为失败',proud:'本轮已结束',celebrate:'本轮刚刚结束'})[s.activity] || (s.hooks ? '未观察到运行中任务' : '尚未接入工作状态');
   $('hooks').textContent = s.hooks ? '重新连接工作状态' : '接入 Codex 工作状态';
   if (s.bridgeStatus === 'busy') $('activity').textContent = '事件通道被另一实例占用，请退出其他桌宠实例';
   const n = s.network;
@@ -41,3 +104,29 @@ for (const id of ['refresh', 'hooks', 'notifications-on', 'notifications-off', '
   finally { $(id).disabled = false; }
 });
 window.pet.onStats(render); window.pet.stats().then(render);
+
+async function focusSettings(){return window.pet.focusAction({type:'settings',minutes:Number($('focus-minutes').value),visual:$('focus-visual').value,thresholds:Object.fromEntries(['cpu','memory','gpu','seconds'].map(k=>[k,Number($('load-'+k).value)]))});}
+$('focus-save').addEventListener('click',async()=>{const r=await focusSettings();$('focus-feedback').textContent=r.error||'计时与阈值设置已保存';displaySettings(await window.pet.ready());});
+for(const b of document.querySelectorAll('[data-focus]'))b.addEventListener('click',async()=>{if(b.dataset.focus==='start')await focusSettings();const r=await window.pet.focusAction({type:b.dataset.focus});$('focus-feedback').textContent=r.error||'计时状态已更新';});
+window.pet.onStats(s=>{const f=s.focus;if(!f)return;const seconds=Math.ceil(f.remainingMs/1000);$('focus-status').textContent=({idle:'尚未开始',running:'专注中',paused:'已暂停',complete:'已完成'})[f.state]+' · '+Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');for(const b of document.querySelectorAll('[data-focus]'))b.disabled=b.dataset.focus==='pause'?f.state!=='running':b.dataset.focus==='resume'?f.state!=='paused':b.dataset.focus==='stop'?!f.active:false;});
+
+$('open-api-settings').addEventListener('click',()=>window.pet.companion('api-settings'));
+
+let reminderSignature='';
+window.pet.onStats(s=>{const data=s.reminders;if(!data)return;const key=JSON.stringify(data);if(key===reminderSignature)return;reminderSignature=key;const box=$('reminder-list');box.replaceChildren();if(data.error){$('reminder-feedback').textContent=data.error;return;}for(const item of [...data.items].sort((a,b)=>(a.status==='done')-(b.status==='done')||(a.dueAt??Infinity)-(b.dueAt??Infinity))){const row=document.createElement('div');row.className='reminder-row';const title=document.createElement('strong');title.textContent=item.title;const description=document.createElement('p');description.className='muted';description.textContent=(item.status==='done'?'已完成':item.status==='due'?'已到期':item.dueAt===null?'待办':'待提醒')+(item.dueAt?' · '+new Date(item.dueAt).toLocaleString():'')+(item.repeat?' · '+(item.repeat==='daily'?'每天':'每周'):'')+(item.important?' · 重要':'');row.append(title,description);for(const [type,label]of [['complete','完成'],['snooze','5分钟后'],['remove','删除']]){if(item.status==='done'&&type!=='remove')continue;const b=document.createElement('button');b.textContent=label;b.addEventListener('click',async()=>{const r=await window.pet.reminderAction({type,id:item.id});$('reminder-feedback').textContent=r.error||'已更新';});row.append(b);}box.append(row);}if(!data.items.length)box.textContent='暂无提醒或待办';});
+$('reminder-add').addEventListener('click',async()=>{if(!$('reminder-title').reportValidity())return;const r=await window.pet.reminderAction({type:'add',title:$('reminder-title').value,at:$('reminder-at').value,repeat:$('reminder-repeat').value,important:$('reminder-important').checked});$('reminder-feedback').textContent=r.error||'已添加';if(!r.error)$('reminder-title').value='';});
+
+$('pet-personality-save').addEventListener('click',async()=>{if(!['pet-name','pet-sleep','pet-wake'].every(id=>$(id).reportValidity()))return;const r=await window.pet.personalitySettings({name:$('pet-name').value,activity:$('pet-activity').value,scheduleEnabled:$('pet-schedule').checked,sleepAt:$('pet-sleep').value,wakeAt:$('pet-wake').value});$('pet-personality-feedback').textContent=r.error||'已保存，空闲时按新设置陪伴';});
+function renderWellbeing(s){if(!s?.life)return;for(const k of ['energy','mood','affection']){$('pet-'+k).value=s.life[k];$('pet-'+k+'-value').textContent=Math.round(s.life[k])+' / 100';}}
+window.pet.onStats(renderWellbeing);window.pet.stats().then(renderWellbeing);
+
+async function systemAction(c){const r=await window.pet.systemCommand(c);$('system-feedback').textContent=r.error||r.message;return r;}
+async function refreshLaunch(c){const r=await window.pet.launchTargets(c);if(r.error){$('system-feedback').textContent=r.error;return;}const list=$('launch-list');list.replaceChildren();for(const t of r.items||[]){const row=document.createElement('p'),name=document.createElement('span');name.textContent=t.name+' · '+t.path+' ';row.append(name);for(const [label,action]of [['打开',()=>systemAction({type:'launch',id:t.id})],['移除配置',()=>refreshLaunch({type:'remove',id:t.id})]]){const b=document.createElement('button');b.textContent=label;b.onclick=action;row.append(b);}list.append(row);}}
+$('launch-add').onclick=()=>refreshLaunch({type:'add',name:$('launch-name').value,kind:$('launch-kind').value});
+$('volume-get').onclick=()=>systemAction({type:'volume',action:'get'});$('volume-set').onclick=()=>{if($('master-volume').reportValidity())systemAction({type:'volume',action:'set',value:Number($('master-volume').value)});};$('volume-undo').onclick=()=>systemAction({type:'volume',action:'undo'});$('system-query').onclick=()=>systemAction({type:'system-status'});refreshLaunch();
+
+$('open-radial').onclick=()=>window.pet.quickAction({type:'open'});
+$('master-volume').oninput=()=>{$('master-volume-value').textContent=$('master-volume').value+'%';};
+$('master-volume').onchange=async()=>{const value=Number($('master-volume').value);$('master-volume').disabled=true;try{await systemAction({type:'volume',action:'set',value});}finally{await loadMasterVolume();}};
+async function loadMasterVolume(){try{const s=await window.pet.quickStatus();if(s.volume?.ok){$('master-volume').value=s.volume.volume;$('master-volume-value').textContent=s.volume.volume+'%';$('master-volume').disabled=false;}}catch(e){$('system-feedback').textContent=e.message;}}
+loadMasterVolume();

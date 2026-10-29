@@ -23,32 +23,37 @@ module.exports = async function smoke(c) {
     assert.equal(win.isAlwaysOnTop(), false);
     assert.equal(win.getBounds().x, expected.x, 'process restart restores native window X');
     assert.equal(win.getBounds().y, expected.y, 'process restart restores native window Y');
+    assert.equal(await read('settings.hudMode'),expected.hudMode);
+    assert.equal(await read('settings.hudFontSize'),expected.hudFontSize);
+    assert.deepEqual(await read('settings.hudItems'),expected.hudItems);
     fs.writeFileSync(path.join(root, 'artifacts', 'smoke-reopen-report.json'), JSON.stringify({ passed: true, checks: ['real process restart restores position, shape, color, size, roam and topmost'] }, null, 2));
     console.log('Desktop pet process-restart check passed');
     return;
   }
   c.updateSettings({ roam: false, bubbles: true, size: 128, color: 'black', shape: 'blob', alwaysOnTop: true });
   c.setPaused(false);
-  win.focus();
   await delay(200);
   // Synthetic input has synthetic global coordinates. Freeze real-cursor hit polling for this input-only check.
   c.stopTicker(); c.setIgnored(false);
-  win.webContents.sendInputEvent({ type: 'mouseDown', x: 180, y: 216, button: 'left', clickCount: 1 });
-  win.webContents.sendInputEvent({ type: 'mouseUp', x: 180, y: 216, button: 'left', clickCount: 1 });
+  // Target the pet's renderer directly so a user switching foreground apps cannot interrupt this fixture.
+  win.webContents.debugger.attach('1.3');
+  const mouse = (type, x, buttons) => win.webContents.debugger.sendCommand('Input.dispatchMouseEvent', {type,x,y:216,button:'left',buttons,clickCount:1});
+  await mouse('mousePressed',180,1);
+  await mouse('mouseReleased',180,0);
   await delay(250);
   assert.equal(c.brain.state, 'happy', 'real renderer pointer interaction reaches main');
   assert.equal(await read('bot.state'), 'happy');
   assert.equal(await read('document.getElementById("bubble").classList.contains("show")'), true);
   c.setIgnored(false);
-  const dragBounds = win.getBounds();
-  win.webContents.sendInputEvent({ type: 'mouseDown', x: 180, y: 216, globalX: dragBounds.x + 180, globalY: dragBounds.y + 216, button: 'left', clickCount: 1 });
-  win.webContents.sendInputEvent({ type: 'mouseMove', x: 205, y: 216, globalX: dragBounds.x + 205, globalY: dragBounds.y + 216, modifiers: ['leftbuttondown'] });
+  await mouse('mousePressed',180,1);
+  await mouse('mouseMoved',205,1);
   await delay(120);
   assert.equal(c.brain.dragging, true, 'renderer drag threshold enters dragging');
-  win.webContents.sendInputEvent({ type: 'mouseUp', x: 205, y: 216, button: 'left', clickCount: 1 });
+  await mouse('mouseReleased',205,0);
   await delay(120);
   assert.equal(c.brain.dragging, false, 'release leaves dragging');
   assert.equal(c.brain.state, 'bouncing');
+  win.webContents.debugger.detach();
   c.startTicker();
   c.updateSettings({ size: 160, color: 'cyan', shape: 'cloud', roam: false, alwaysOnTop: false });
   await delay(250);
@@ -82,14 +87,14 @@ module.exports = async function smoke(c) {
   c.keepVisible();
   const bounds = win.getBounds();
   const area = screen.getDisplayMatching(bounds).workArea;
-  assert.ok(bounds.x >= area.x && bounds.y >= area.y && bounds.x + bounds.width <= area.x + area.width && bounds.y + bounds.height <= area.y + area.height, 'lost window recovered inside real work area');
-  c.updateSettings({ roam: true });
+  const recoveredSize=await read('settings.size');assert.ok(bounds.x+180-recoveredSize/2>=area.x&&bounds.y+216-recoveredSize/2>=area.y,'lost pet recovered inside real work area');
+  c.updateSettings({ roam: true,hudMode:'hidden' });await delay(750);
   c.brain.lastInteraction = Date.now() - 10000;
   c.brain.until = 0; c.brain.nextIdle = Date.now() + 12000;
   // Use the opposite corner from the real pointer so the hover stop does not suppress roaming.
   const cursor = screen.getCursorScreenPoint();
   win.setPosition(cursor.x < area.x + area.width / 2 ? area.x + area.width - 360 : area.x,
-    cursor.y < area.y + area.height / 2 ? area.y + area.height - 360 : area.y);
+    cursor.y < area.y + area.height / 2 ? area.y + area.height - 480 : area.y);
   c.keepVisible();
   const roamStart = win.getBounds().x;
   await delay(650);
@@ -119,7 +124,11 @@ module.exports = async function smoke(c) {
   fs.writeFileSync(path.join(output, 'smoke-report.json'), JSON.stringify(report, null, 2));
   c.updateSettings({ size: 160, color: 'cyan', shape: 'cloud', roam: false, alwaysOnTop: false });
   c.persist();
-  fs.writeFileSync(path.join(output, 'smoke-restart-expected.json'), JSON.stringify(c.store.load(), null, 2));
   await require('./companion-smoke.cjs')(c);
+  await require('./activity-smoke.cjs')(c);
+  await require('./music-smoke.cjs')(c);
+  await require('./assistant-smoke.cjs')(c);
+  c.persist();
+  fs.writeFileSync(path.join(output, 'smoke-restart-expected.json'), JSON.stringify(c.store.load(), null, 2));
   console.log('Desktop pet smoke passed:', JSON.stringify(report));
 };

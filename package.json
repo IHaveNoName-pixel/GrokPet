@@ -1,6 +1,6 @@
 {
   "name": "blob-desktop-pet-study",
-  "version": "0.2.0",
+  "version": "0.8.0",
   "private": true,
   "description": "Local desktop pet study using the existing SVG character engine",
   "main": "desktop/main.cjs",
@@ -8,9 +8,21 @@
     "start": "node scripts/start.cjs",
     "test": "node --test tests/*.test.cjs",
     "package": "node scripts/package.cjs",
-    "smoke": "node scripts/smoke.cjs"
+    "smoke": "node scripts/smoke.cjs",
+    "release": "node scripts/release.cjs"
   },
   "devDependencies": {
-    "electron": "41.10.6"
+    "@paper-design/shaders-react": "^0.0.82",
+    "@tailwindcss/cli": "^4.3.3",
+    "clsx": "^2.1.1",
+    "electron": "41.10.6",
+    "esbuild": "^0.28.2",
+    "lucide-react": "^1.63.0",
+    "motion": "^14.7.1",
+    "rcedit": "^5.0.1",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwind-merge": "^3.7.0",
+    "tailwindcss": "^4.3.3"
   }
 }

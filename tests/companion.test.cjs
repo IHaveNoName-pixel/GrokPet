@@ -20,14 +20,14 @@ test('task completion cannot clear a different running task and duplicate comple
   const a = new Activity();
   a.event({event:'UserPromptSubmit',session:'a',turn:'1'},100);
   a.event({event:'UserPromptSubmit',session:'b',turn:'1'},100);
-  assert.equal(a.state(100),'working');
+  assert.equal(a.state(100),'thinking');
   assert.ok(a.event({event:'Stop',session:'a',turn:'1',message:'完成'},200));
-  assert.equal(a.state(200),'working');
+  assert.equal(a.state(200),'thinking');
   assert.equal(a.event({event:'Stop',session:'a',turn:'1',message:'完成'},201),null);
   a.event({event:'PermissionRequest',session:'b',turn:'1'},300);
   assert.equal(a.state(300),'alerting');
   a.event({event:'Stop',session:'b',turn:'1'},400);
-  assert.equal(a.state(400),'celebrate');
+  assert.equal(a.state(400),'proud');
   assert.equal(a.state(10000),null);
 });
 test('hook merge preserves existing handlers and is idempotent without approval decisions', () => {
@@ -47,14 +47,21 @@ test('notifications are bounded, deduplicated, and displayed serially', () => {
   assert.equal(q.next(100),null);
   assert.equal(q.next(8001).title,'第二条');
 });
+test('urgent approval interrupts the ordinary notice cooldown and goes before music',()=>{
+  const q=new NoticeQueue();
+  q.push({id:'load',source:'系统负载',title:'繁忙'},0);q.next(0);
+  q.push({id:'music',source:'网易云音乐',title:'播放'},1);
+  q.push({id:'urgent',source:'Codex',title:'需要你处理',priority:'urgent'},100);
+  assert.equal(q.next(100)?.id,'urgent');
+});
 test('a late old turn completion cannot clear the new turn and resumed tools clear approval state', () => {
   const a = new Activity();
   a.event({event:'UserPromptSubmit',session:'a',turn:'new'},100);
   a.event({event:'Stop',session:'a',turn:'old'},200);
-  assert.equal(a.state(200),'working');
+  assert.equal(a.state(200),'thinking');
   a.event({event:'PermissionRequest',session:'a',turn:'new'},300);
   a.event({event:'PostToolUse',session:'a',turn:'new'},400);
-  assert.equal(a.state(400),'working');
+  assert.equal(a.state(400),'thinking');
 });
 test('sustained hardware load animates, short spikes do not, recovery has hysteresis', () => {
   const load = new LoadMonitor();
@@ -76,7 +83,7 @@ test('sessions without turn IDs still complete multiple consecutive turns', () =
   assert.ok(a.event({event:'Stop',session:'a'},200));
   a.event({event:'UserPromptSubmit',session:'a'},300);
   assert.ok(a.event({event:'Stop',session:'a'},400));
-  assert.equal(a.state(400),'celebrate');
+  assert.equal(a.state(400),'proud');
   assert.equal(a.event({event:'Stop',session:'a'},401),null);
 });
 test('losing the system bridge clears stale hardware values and load animations', () => {
@@ -94,7 +101,7 @@ test('a prompt without a turn ID can bind to the subsequent tool and completion 
   a.event({event:'UserPromptSubmit',session:'a'},100);
   a.event({event:'PostToolUse',session:'a',turn:'real'},200);
   a.event({event:'Stop',session:'a',turn:'real'},300);
-  assert.equal(a.state(300),'celebrate');
+  assert.equal(a.state(300),'proud');
 });
 test('a duplicated old completion cannot bind a new prompt which has no turn ID yet', () => {
   const a = new Activity();
@@ -104,5 +111,5 @@ test('a duplicated old completion cannot bind a new prompt which has no turn ID 
   a.event({event:'Stop',session:'a',turn:'old'},400);
   a.event({event:'PostToolUse',session:'a',turn:'new'},500);
   a.event({event:'Stop',session:'a',turn:'new'},600);
-  assert.equal(a.state(600),'celebrate');
+  assert.equal(a.state(600),'proud');
 });

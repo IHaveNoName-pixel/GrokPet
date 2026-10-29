@@ -440,7 +440,7 @@
         this.ovRestAt = 0;
       }
       let on = want != null;
-      if (want && FX.CYCLE.has(this.state)) {
+      if (want && FX.CYCLE.has(this.state) && !(this.state === 'progress' && Number.isFinite(this.fx.externalProgress))) {
         if (!this.ovRest && now - this.fx.overlayAt > (FX.CYCLE_ON[this.state] || 2500)) {
           this.ovRest = true;
           this.ovRestAt = now;

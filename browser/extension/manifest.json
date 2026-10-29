@@ -1,0 +1,18 @@
+{
+  "manifest_version": 3,
+  "name": "软团桌宠下载联动",
+  "version": "1.0.0",
+  "description": "将活动下载的进度和状态发送到本机桌宠",
+  "permissions": [
+    "downloads",
+    "nativeMessaging",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArLiLcWHeTWe2BPCQ0Hzac3WrDQZQNr8Sow9xjDYadnoZ31cYCaPT6C8WaEIEgFpUFXkTgAjBKSFCZ/P/abTaSfqWwrczRHLaXTvfWPgfs3hDxiQOGZdeBfRJzPiMRsckDj0OYEClKRnmxKmbulYzbVGXdi2y699sCKOColwTxCIxFCSzUwIUoHG4WmRYqbwjTap9IGUJHUuGHSRWYMjWM3Eo+gR+OGmReBiDj3NZgcTu1DjIhpRV9W021Fb+Is62UFqlMEkQ/DXgqO+51rNJKb43tcQk70xcliuMEYfKFwq0XWJCOjH4J3jZ9r3XbIbnhEzlHlWneNKDvc8aCkD1IQIDAQAB"
+}

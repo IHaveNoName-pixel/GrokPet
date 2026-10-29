@@ -1,0 +1,34 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+module.exports=async c=>{
+ c.stopTicker();const read=s=>c.win.webContents.executeJavaScript(s);
+ for(let i=0;i<40&&!await read('!!bot');i++)await wait(50);
+ c.updateSettings({hudMode:'always',bubbles:false,hudItems:{cpu:true,network:true},dockItems:{focus:true,load:false,music:false,transfer:false,toolbar:false,system:true}});
+ async function click(selector){const p=await read(`(()=>{const el=document.querySelector(${JSON.stringify(selector)});const r=el.getBoundingClientRect();const x=Math.round(r.x+r.width/2),y=Math.round(r.y+r.height/2);return {x,y,hit:document.elementFromPoint(x,y)===el};})()`);assert.ok(p.hit,'button is the pointer target');const r=c.getControlRegion();assert.ok(r&&p.x>=r.x&&p.x<=r.x+r.width&&p.y>=r.y&&p.y<=r.y+r.height,'native region covers button');c.setIgnored(false);for(const type of ['mouseMove','mouseDown','mouseUp'])c.win.webContents.sendInputEvent({type,x:p.x,y:p.y,...(type==='mouseMove'?{}:{button:'left',clickCount:1})});await wait(180);}
+ c.companion.reminders.commit([]);
+ const due=c.companion.reminders.add('确认验收',Date.now()-1000);c.companion.emit();await wait(200);
+ assert.equal(await read('document.getElementById("reminder-confirm").hidden'),false);
+ await click('#reminder-confirm');assert.equal(c.companion.reminders.items.find(x=>x.id===due.id).status,'done');assert.equal(await read('document.getElementById("reminder-card").hidden'),true);
+ const todo=c.companion.reminders.add('待办保留',null),repeat=c.companion.reminders.add('重复提醒',Date.now()-1000,{repeat:'daily'});c.companion.emit();await wait(200);
+ await click('#reminder-confirm');assert.equal(c.companion.reminders.items.find(x=>x.id===repeat.id).status,'pending');assert.ok(c.companion.reminders.items.find(x=>x.id===repeat.id).dueAt>Date.now());assert.equal(c.companion.reminders.items.find(x=>x.id===todo.id).status,'pending');assert.equal(await read('document.getElementById("reminder-confirm").hidden'),true);
+ const stale=await read('window.pet.reminderAction('+JSON.stringify({type:'acknowledge',id:repeat.id})+')');assert.ok(stale.error,'late acknowledgement cannot complete next occurrence');
+ const now=Date.now();for(let i=0;i<60;i++)c.companion.history.sample({cpu:30+i/3,download:(i%13)*16384,upload:(i%7)*8192},now-59000+i*1000);
+ c.companion.snapshot.network={status:'ready',download:98304,upload:16384,tunnels:[]};c.companion.snapshot.hardware={cpu:50};c.companion.emit();
+ await read('window.systemCard.setExpanded(true)');await wait(600);
+ assert.equal(await read('document.querySelectorAll("[data-metric=network] .metric-trend path").length'),2);
+ assert.ok(await read('document.querySelector("[data-metric=network] .trend-download").getAttribute("d").includes("L")'));
+ assert.ok(await read('document.querySelector("[data-metric=network] .metric-trend").getBoundingClientRect().width')>200);
+ await read('document.getElementById("system-details").scrollTop=9999');await wait(100);
+ fs.writeFileSync(path.join(c.root,'artifacts','network-trends-preview.png'),(await c.win.webContents.capturePage()).toPNG());
+ console.log('Network and reminder assertions passed');
+ await c.showPanel();const panel=c.getPanel(),panelRead=s=>panel.webContents.executeJavaScript(s);await wait(200);
+ await panelRead('document.getElementById("pet-name").value="小团";document.getElementById("pet-activity").value="quiet";document.getElementById("pet-schedule").checked=true;document.getElementById("pet-sleep").value="23:30";document.getElementById("pet-wake").value="07:30";document.getElementById("pet-personality-save").click()');await wait(200);
+ const settings=await read('window.pet.ready()');assert.equal(settings.personality.name,'小团');assert.equal(settings.personality.activity,'quiet');assert.equal(settings.personality.sleepAt,'23:30');assert.ok(await panelRead('document.getElementById("pet-energy").value')>0);
+ const reopened=new (require('./settings.cjs').SettingsStore)(path.join(c.dataDir,'settings.json')).load();assert.equal(reopened.personality.name,'小团');assert.equal(reopened.personality.scheduleEnabled,true);assert.ok(reopened.wellbeing.updatedAt>0);
+ const bad=await read('window.pet.personalitySettings({name:"x",activity:"normal",sleepAt:"01:00",wakeAt:"01:00",scheduleEnabled:true})');assert.ok(bad.error);
+ console.log('Personality persistence assertions passed');
+ await panelRead('document.getElementById("personality-section").scrollIntoView()');panel.show();await wait(500);
+ fs.writeFileSync(path.join(c.root,'artifacts','personality-preview.png'),(await panel.webContents.capturePage()).toPNG());
+ console.log('Network dual trends, native hit regions, reminder confirmation/recurrence and personality save/reopen smoke passed');
+};

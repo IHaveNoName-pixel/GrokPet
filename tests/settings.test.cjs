@@ -30,3 +30,12 @@ test('malformed JSON is retained for recovery and defaults are usable', t => {
   assert.equal(loaded.size, 128);
   assert.equal(fs.readFileSync(file + '.broken', 'utf8'), '{broken');
 });
+test('HUD item selection, size and permanent hiding survive saving and reopening', t => {
+  const file = fixture(t);
+  new SettingsStore(file).save({hudMode:'hidden',hudFontSize:16,hudItems:{codex:false,network:false,vpn:false,cpu:true,memory:true,gpu:false}});
+  const s = new SettingsStore(file).load();
+  assert.equal(s.hudMode,'hidden'); assert.equal(s.hudFontSize,16);
+  assert.deepEqual(s.hudItems,{codex:false,network:false,vpn:false,cpu:true,memory:true,gpu:false,music:false});
+});
+
+test('summary ordering and limit persist and discard invalid entries',t=>{const file=fixture(t);new SettingsStore(file).save({summaryOrder:['gpu','cpu','gpu','bad'],summaryMax:3});const s=new SettingsStore(file).load();assert.deepEqual(s.summaryOrder,['gpu','cpu','memory','codex','network','vpn']);assert.equal(s.summaryMax,3);});

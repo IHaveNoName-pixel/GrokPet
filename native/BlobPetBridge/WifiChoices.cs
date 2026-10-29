@@ -1,0 +1,19 @@
+using System.Runtime.InteropServices;
+using System.Text;
+internal static class WifiChoices{
+ [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]private struct Adapter{public Guid Id;[MarshalAs(UnmanagedType.ByValTStr,SizeConst=256)]public string Name;public uint State;}
+ [StructLayout(LayoutKind.Sequential)]private struct Ssid{public uint Length;[MarshalAs(UnmanagedType.ByValArray,SizeConst=32)]public byte[] Bytes;}
+ [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]private struct Network{[MarshalAs(UnmanagedType.ByValTStr,SizeConst=256)]public string Profile;public Ssid Ssid;public uint Bss,Count;public int Connectable;public uint Reason,PhyCount;[MarshalAs(UnmanagedType.ByValArray,SizeConst=8)]public uint[] Phys;public int MorePhys;public uint Signal;public int Secure;public uint Auth,Cipher,Flags,Reserved;}
+ [StructLayout(LayoutKind.Sequential,CharSet=CharSet.Unicode)]private struct Connect{public uint Mode;[MarshalAs(UnmanagedType.LPWStr)]public string Profile;public IntPtr Ssid,Bssids;public uint Bss,Flags;}
+ [DllImport("wlanapi.dll")]private static extern uint WlanOpenHandle(uint version,IntPtr reserved,out uint negotiated,out IntPtr handle);
+ [DllImport("wlanapi.dll")]private static extern uint WlanCloseHandle(IntPtr handle,IntPtr reserved);
+ [DllImport("wlanapi.dll")]private static extern void WlanFreeMemory(IntPtr p);
+ [DllImport("wlanapi.dll")]private static extern uint WlanEnumInterfaces(IntPtr handle,IntPtr reserved,out IntPtr list);
+ [DllImport("wlanapi.dll")]private static extern uint WlanGetAvailableNetworkList(IntPtr handle,ref Guid id,uint flags,IntPtr reserved,out IntPtr list);
+ [DllImport("wlanapi.dll")]private static extern uint WlanConnect(IntPtr handle,ref Guid id,ref Connect parameters,IntPtr reserved);
+ private static string Token(Guid id,Network n)=>Convert.ToBase64String(Encoding.UTF8.GetBytes(id+"|"+n.Profile+"|"+Encoding.UTF8.GetString(n.Ssid.Bytes,0,(int)Math.Min(32,n.Ssid.Length))));
+ internal static void Run(string action,string value){IntPtr handle=IntPtr.Zero,list=IntPtr.Zero;try{if(WlanOpenHandle(2,IntPtr.Zero,out _,out handle)!=0)throw new InvalidOperationException("无线服务不可用");if(WlanEnumInterfaces(handle,IntPtr.Zero,out list)!=0)throw new InvalidOperationException("无法读取无线网卡");var items=new List<object>();int count=Marshal.ReadInt32(list);bool denied=false;
+ for(int i=0;i<Math.Min(count,16);i++){var a=Marshal.PtrToStructure<Adapter>(list+8+i*Marshal.SizeOf<Adapter>());IntPtr networks=IntPtr.Zero;try{var code=WlanGetAvailableNetworkList(handle,ref a.Id,2,IntPtr.Zero,out networks);if(code!=0){denied=true;continue;}int nCount=Marshal.ReadInt32(networks);for(int j=0;j<Math.Min(nCount,256);j++){var n=Marshal.PtrToStructure<Network>(networks+8+j*Marshal.SizeOf<Network>());var name=Encoding.UTF8.GetString(n.Ssid.Bytes,0,(int)Math.Min(32,n.Ssid.Length));if(string.IsNullOrWhiteSpace(name))continue;var id=Token(a.Id,n);if(action=="wifi-connect"&&id==value){if(string.IsNullOrEmpty(n.Profile)){Program.Emit(new{ok=false,reason="该网络尚未保存密码，请点击系统网络列表完成首次连接"});return;}var parameters=new Connect{Mode=0,Profile=n.Profile,Bss=n.Bss};var result=WlanConnect(handle,ref a.Id,ref parameters,IntPtr.Zero);Program.Emit(new{ok=result==0,reason=result==0?"已提交连接请求，请刷新确认实际连接状态":"Windows 拒绝连接，请使用系统网络列表"});return;}items.Add(new{id,name,signal=n.Signal,security=n.Secure!=0?"安全网络":"开放网络",connected=(n.Flags&1)!=0,saved=!string.IsNullOrEmpty(n.Profile)});}}finally{if(networks!=IntPtr.Zero)WlanFreeMemory(networks);}}
+ if(action=="wifi-connect")throw new InvalidOperationException("该网络不在当前列表，请刷新后重选");Program.Emit(new{ok=!denied,items,reason=denied?"无线列表访问被拒绝，请检查 Windows 位置权限或打开系统网络列表":""});
+ }catch(Exception e){Program.Emit(new{ok=false,reason=e.Message,items=Array.Empty<object>()});}finally{if(list!=IntPtr.Zero)WlanFreeMemory(list);if(handle!=IntPtr.Zero)WlanCloseHandle(handle,IntPtr.Zero);}}
+}

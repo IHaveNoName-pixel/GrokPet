@@ -1,5 +1,6 @@
 const { spawn } = require('node:child_process');
 const path = require('node:path');
+require('./build-ui.cjs');
 const { runtimeDirectory } = require('./runtime.cjs');
 const env = { ...process.env };
 delete env.ELECTRON_RUN_AS_NODE;

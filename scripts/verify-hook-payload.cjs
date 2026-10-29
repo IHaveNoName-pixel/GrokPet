@@ -1,0 +1,12 @@
+'use strict';
+const {spawnSync}=require('node:child_process');const path=require('node:path');const assert=require('node:assert/strict');
+const bridge=process.argv[2]||path.join(__dirname,'../.runtime/bridge/BlobPetBridge.exe');
+const make=(name,input)=>({hook_event_name:'PreToolUse',session_id:'fixture',turn_id:'test',tool_use_id:'tool',tool_name:name,tool_input:input});
+const fail=response=>({...make('Bash',{}),hook_event_name:'PostToolUse',tool_response:response});
+const fixtures=[make('apply_patch',{command:'sensitive fixture content'}),make('Bash',{command:'rg --files'}),make('mcp__files__search',{}),make('Bash',{command:'dotnet build'}),fail({exit_code:1}),fail({isError:true}),fail({content:[{type:'text',text:'Process exited with code 2'}]}),fail({exit_code:0,output:'no errors'}),fail({exit_code:'unknown'}),fail('No failure status was provided')];
+const result=spawnSync(bridge,['--hook-probe'],{input:JSON.stringify(fixtures),encoding:'utf8',windowsHide:true,timeout:15000});
+assert.equal(result.status,0,result.stderr||result.error?.message);const values=JSON.parse(result.stdout);
+assert.deepEqual(values.slice(0,4).map(v=>v.phase),['writing','searching','searching','working']);
+assert.deepEqual(values.slice(4).map(v=>v.failed),[true,true,true,false,false,false]);
+assert.ok(!result.stdout.includes('sensitive fixture content'),'bridge forwards only classification, not tool input');
+console.log('Native hook normalization passed: 10 fixtures; no raw tool input forwarded.');

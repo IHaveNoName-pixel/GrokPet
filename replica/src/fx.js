@@ -580,7 +580,7 @@
     paintProgress(ze, now, R) {
       const mt = Rc(ze), Dt = y1e(ze), Mt = 62;
       const Lt = clamp((now - this.overlayAt) / CYCLE_ON.progress, 0, 1);
-      const yn = clamp(Lt / 0.85, 0, 1);
+      const yn = Number.isFinite(this.externalProgress) ? clamp(this.externalProgress / 100, 0, 1) : clamp(Lt / 0.85, 0, 1);
       const an = this.rings[3];
       an.style.display = "";
       an.setAttribute("cx", `${R}`); an.setAttribute("cy", `${R}`);

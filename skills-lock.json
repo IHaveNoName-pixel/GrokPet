@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "skills": {
+    "setup": {
+      "source": "aisdkagents.com",
+      "sourceUrl": "https://www.aisdkagents.com/skill/setup",
+      "sourceType": "well-known",
+      "computedHash": "4e68d8b9358398a9de92b37fd52e2d3ded6dc4db270620abedfd0294a2910742",
+      "wellKnownDigest": "sha256:e9d399c60cba6eae81e3b0504bec385817e60a4e9e3fed25e158939638af5940"
+    }
+  }
+}

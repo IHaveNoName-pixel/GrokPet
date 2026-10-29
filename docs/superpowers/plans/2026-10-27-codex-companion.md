@@ -13,12 +13,16 @@
 
 ## Tasks
 
-- [ ] Tests first: tests/companion.test.cjs for quota, throughput, lifecycle queue, hook merging. Run failing tests, implement desktop/companion-core.cjs.
-- [ ] Codex RPC: desktop/codex-client.cjs with spawn/init/timeout/cancellation, read-only refresh and surfaced errors.
-- [ ] Native helper: native/BlobPetBridge with metrics, permission check/request, fresh notification polling and hook relay. Build and run safe metric/status probes.
-- [ ] Main integration: desktop/companion.cjs, hook installer, isolated panel IPC, activity priority, status HUD, queued bubbles; add pet/panel.html/css/js.
-- [ ] Test actual Electron panel/HUD/bubble, quota refresh, native metrics and restart. Independent code review, fix regressions, package, preserve evidence and note notification permission boundary.
+- [x] Tests first: quota, throughput, lifecycle queue, hook merging, HUD persistence, startup adapter. 23 tests passing.
+- [x] Codex RPC: spawn/init/timeout/cancellation, read-only refresh and surfaced errors; live RPC verified.
+- [x] Native helper: metrics, permission check/request, fresh notification polling and hook relay. Built and safe probes passed; real notification reading remains user-gated and untested.
+- [x] Main integration: hook installer, isolated panel IPC, activity priority, HUD and queued bubbles.
+- [x] Actual packaged Electron panel/HUD/bubble, quota, native metrics and process restart passed. Independent code review fixes verified.
 
 ## Ledger
 
 Approved independent companion scope. Live proof: CLI 0.154.0 official read-only rateLimits RPC worked; physical WLAN byte counters and active FlClash Meta Tunnel / enabled proxy were observed. No global hooks.json existed at inspection. Windows SDK and .NET 10 are available locally.
+
+User additions: CPU/memory/GPU and load animations; readable configurable HUD with hover/always/hidden; optional login startup. Completed with actual UI capture/IPC/restart verification. Startup registration was not enabled on the user's behalf. Existing hook configuration now has five marked handlers; preserved.
+
+Rulings: app-specific same-user pipe channels and parent-exit cleanup avoid stale bridge collisions; UTF8 stdin preserves Chinese completion summaries. Missing/mixed/late turn IDs covered by regressions. System bridge failures invalidate load animations. Synthetic input uses the pet's own renderer protocol so foreground app switching cannot break fixtures.

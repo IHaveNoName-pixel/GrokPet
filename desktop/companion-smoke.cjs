@@ -5,6 +5,8 @@ const { spawn } = require('node:child_process');
 const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
 module.exports = async c => {
   c.companion.start();
+  // Live hardware load is validated separately; keep ambient warnings out of this event-chain fixture.
+  c.companion.lastLoadNotice=Date.now();
   for (let i = 0; i < 100 && (c.companion.snapshot.quota.status === 'loading' || c.companion.snapshot.network.download === null || c.companion.snapshot.bridgeStatus !== 'ready'); i++) await wait(250);
   const snap = structuredClone(c.companion.snapshot);
   assert.equal(snap.quota.status, 'ready', snap.quota.error);
@@ -25,9 +27,10 @@ module.exports = async c => {
   assert.match(await readPanel('document.getElementById("quota").textContent'), /剩余/);
   assert.match(await readPanel('document.getElementById("download").textContent'), /[KM]B\/s/);
   assert.equal(await readPanel('typeof require'), 'undefined');
+  await require('./display-smoke.cjs')(c);
   assert.match(await readPanel('document.getElementById("cpu").textContent'), /%/);
   assert.match(await readPanel('document.getElementById("memory-detail").textContent'), /GB/);
-  async function hook(event) {
+  async function hook(event,extra={}) {
     await new Promise((resolve, reject) => {
       const child = spawn(c.companion.bridge, ['hook', '--event', event, '--channel', c.companion.channel, '--diagnostic'], { windowsHide: true });
       let output = '';
@@ -37,27 +40,38 @@ module.exports = async c => {
       child.stdout.on('data', b => output += b);
       child.on('error', reject);
       child.on('exit', code => { clearTimeout(timeout); try { assert.equal(code, 0); assert.equal(diagnostic, ''); assert.deepEqual(JSON.parse(output), {}); resolve(); } catch (e) { reject(e); } });
-      child.stdin.end(JSON.stringify({session_id:'pet-smoke-session',turn_id:'pet-smoke-turn',last_assistant_message:'示例任务已完成，结果已保存。'}));
+      child.stdin.end(JSON.stringify({session_id:'pet-smoke-session',turn_id:'pet-smoke-turn',last_assistant_message:'示例任务已完成，结果已保存。',...extra}));
     });
     await wait(150);
   }
   await hook('UserPromptSubmit');
-  assert.equal(c.companion.activity.state(), 'working');
+  assert.equal(c.companion.activity.state(), 'thinking');
+  await hook('PreToolUse',{tool_name:'Bash',tool_use_id:'search',tool_input:{command:'rg --files'}});
+  assert.equal(c.companion.activity.state(),'searching');
+  await hook('PostToolUse',{tool_use_id:'search',tool_response:{exit_code:0}});
+  await hook('PreToolUse',{tool_name:'apply_patch',tool_use_id:'edit',tool_input:{command:'fixture only; never executed'}});
+  assert.equal(c.companion.activity.state(),'writing');
   await hook('PermissionRequest');
   assert.equal(c.companion.activity.state(), 'alerting');
   c.tick(); await wait(100);
   assert.match(await c.win.webContents.executeJavaScript('document.getElementById("bubble").textContent'), /需要你处理/);
   await hook('PostToolUse');
-  assert.equal(c.companion.activity.state(), 'working');
+  assert.equal(c.companion.activity.state(), 'writing');
+  await hook('PostToolUse',{tool_use_id:'edit',tool_response:{isError:true}});
+  assert.equal(c.companion.activity.state(),'confused');
+  await hook('PostToolUse',{tool_response:{exit_code:0}});
   c.companion.queue.nextAt = 0;
   await hook('Stop');
-  assert.equal(c.companion.activity.state(), 'celebrate');
+  assert.equal(c.companion.activity.state(), 'proud');
   c.tick(); await wait(150);
   assert.match(await c.win.webContents.executeJavaScript('document.getElementById("bubble").textContent'), /示例任务已完成/);
   c.companion.stop();
   c.brain.until = 0;
+  c.brain.lastInteraction=Date.now();c.brain.nextIdle=Date.now()+60000;
   c.companion.activity.tasks.clear(); c.companion.activity.celebrateUntil = 0;
   c.companion.load = new (require('./companion-core.cjs').LoadMonitor)();
+  // This fixture checks idle load priority; an actual playing session correctly wins.
+  c.companion.music.ingest({status:'none',state:'paused',title:''});
   const fakeAt = Date.now();
   const input = { kind:'metrics', at:fakeAt, adapters:[], tunnels:[], proxyEnabled:false, hardware:{cpu:99,memory:50,gpu:20} };
   c.companion.receive(input); c.companion.receive({...input, at:fakeAt + 8100});
@@ -74,5 +88,6 @@ module.exports = async c => {
   fs.writeFileSync(path.join(output, 'companion-report.json'), JSON.stringify({ passed: true, quota: snap.quota, network: snap.network, hardware: snap.hardware,
     checks: ['live official Codex quota RPC', 'real physical network throughput', 'real CPU/memory/GPU metrics', 'isolated status panel', 'same-user native pipe hook relay', 'working/approval/resume/completion states', 'completion summary bubble', 'sustained load reaches animation with simulated 99 percent sample', 'no implicit notification reading'] }, null, 2));
   console.log('Codex companion smoke passed');
-  panel.close(); c.companion.stop();
+  c.updateSettings({hudMode:'hidden',hudFontSize:16,hudItems:{codex:false,network:false,vpn:false,cpu:true,memory:true,gpu:false}});
+  await new Promise(resolve=>{panel.once('closed',resolve);panel.close();}); c.companion.stop();
 };

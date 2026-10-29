@@ -10,13 +10,14 @@ function findCodex() {
   return candidates.find(file => fs.existsSync(file));
 }
 class CodexClient {
-  constructor() { this.child = null; this.pending = new Map(); this.id = 0; this.connecting = null; }
+  constructor({spawnImpl=spawn,executable=null}={}) { this.spawnImpl=spawnImpl;this.executable=executable;this.child = null; this.pending = new Map(); this.id = 0; this.connecting = null;this.configOverrides=[]; }
+  async configureReadOnly(config){this.stop();this.configOverrides=Object.entries(config).filter(([,value])=>value===false).flatMap(([key])=>['-c',key+'=false']);await this.connect();}
   async connect() {
     if (this.connecting) return this.connecting;
     this.connecting = (async () => {
-      const exe = findCodex();
+      const exe = this.executable||findCodex();
       if (!exe) throw new Error('未找到 Codex CLI，请先安装或打开 Codex 桌面应用');
-      const child = this.child = spawn(exe, ['app-server', '--stdio'], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+      const child = this.child = this.spawnImpl(exe, [...this.configOverrides,'app-server', '--stdio'], { windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
       let buffer = '';
       child.stderr.on('data', () => {});
       child.stdout.on('data', chunk => {
@@ -26,8 +27,13 @@ class CodexClient {
         while ((at = buffer.indexOf('\n')) >= 0) {
           const line = buffer.slice(0, at); buffer = buffer.slice(at + 1);
           let m; try { m = JSON.parse(line); } catch { continue; }
-          const p = this.pending.get(m.id);
-          if (p) { clearTimeout(p.timeout); this.pending.delete(m.id); m.error ? p.reject(new Error(m.error.message || '额度接口出错')) : p.resolve(m.result); }
+          if(m.method){
+            if(m.id!==undefined)child.stdin.write(JSON.stringify({id:m.id,error:{code:-32601,message:'Read-only client: interactive grants and external tool requests are not supported'}})+'\n');
+            else this.onNotification?.(m.method,m.params||{});
+          }else{
+            const p=this.pending.get(m.id);
+            if(p){clearTimeout(p.timeout);this.pending.delete(m.id);m.error?p.reject(new Error(m.error.message||'Codex接口出错')):p.resolve(m.result);}
+          }
         }
       });
       const failed = () => {
@@ -35,9 +41,10 @@ class CodexClient {
         this.child = null; this.connecting = null;
         for (const p of this.pending.values()) { clearTimeout(p.timeout); p.reject(new Error('Codex 连接已关闭')); }
         this.pending.clear();
+        this.onDisconnect?.();
       };
       child.on('error', failed); child.on('exit', failed); child.stdin.on('error', failed);
-      await this.request('initialize', { clientInfo: { name: 'blob_pet_companion', title: 'Blob Pet Companion', version: '0.2.0' } });
+      await this.request('initialize', { clientInfo: { name: 'blob_pet_companion', title: 'Blob Pet Companion', version: '0.7.0' } });
       child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
     })();
     try { await this.connecting; }
