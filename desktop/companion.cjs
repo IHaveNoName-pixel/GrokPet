@@ -16,7 +16,8 @@ class Companion {
   constructor(root, publish, options = {}) {
     this.root = root; this.publish = publish;
     this.channel = options.channel || crypto.createHash('sha256').update(root.toLowerCase()).digest('hex').slice(0, 12);
-    this.codex = new CodexClient(); this.flow = new Throughput(); this.activity = new Activity(); this.queue = new NoticeQueue();
+    this.codex = new CodexClient(); this.flow = new Throughput(); this.activity = new Activity(); this.queue = new NoticeQueue();this.work=new (require('./work/work-controller.cjs').WorkController)({activity:this.activity,enabled:options.workEnabled!==false});
+    const {ProjectStore,GitMonitor}=require('./work/git-projects.cjs');this.projects=new GitMonitor(new ProjectStore(path.join(options.dataDir||path.join(root,'.runtime','user-data'),'projects.json')),()=>{if(!this.stopped)this.emit();});
     this.reminders=new ReminderStore(path.join(options.dataDir||path.join(root,'.runtime','user-data'),'reminders.json'));this.reminderSeen=new Set();this.focus=new FocusTimer(path.join(options.dataDir||path.join(root,'.runtime','user-data'),'focus.json'));this.history=new MetricHistory();this.wasFocusing=false;this.load = new LoadMonitor();this.load.configure(options.loadThresholds); this.lastLoadNotice = 0;
     this.music=new MusicClock();this.musicEnabled=options.musicEnabled!==false;this.musicBubbles=options.musicBubbles!==false;this.musicChild=null;this.audioOutput=options.audioPeak||(()=>{});this.audioChild=null;
     this.lyrics=new LyricsStore(path.join(options.dataDir||path.join(root,'.runtime','user-data'),'lyrics.json'));
@@ -26,10 +27,10 @@ class Companion {
     this.controlMedia=require('./media-control.cjs').createMediaController(this.bridge);
     this.snapshot = { quota: { status: 'loading', buckets: [], updatedAt: null }, network: { status: 'loading', download: null, upload: null, tunnels: [] },
       notifications: '未启用', hooks: hooksInstalled(), bridgeStatus:'starting', activity: null, hardware: {cpu:null,memory:null,gpu:null,level:'unknown',animation:null},media:this.music.view() };
-    this.children = new Set(); this.stopped = false; this.busy = false; this.notificationChild = null;
+    this.noticeDeliveries=new Map();this.children = new Set(); this.stopped = false; this.busy = false; this.notificationChild = null;
   }
   emit() {
-    try{const due=this.reminders.due();this.reminders.markDue(due.map(x=>x.id));for(const item of this.reminders.items.filter(x=>x.status==='due')){const key=item.id+':'+item.dueAt;if(this.reminderSeen.has(key))continue;this.queue.push({id:'reminder:'+key,source:'提醒',title:item.title,body:'已到提醒时间，可在提醒待办中完成或稍后提醒。',priority:item.important?'urgent':'normal'});this.reminderSeen.add(key);if(this.reminderSeen.size>1000)this.reminderSeen.delete(this.reminderSeen.values().next().value);}}catch(error){this.reminders.error=error.message;}
+    try{const due=this.reminders.due();this.reminders.markDue(due.map(x=>x.id));for(const item of this.reminders.items.filter(x=>x.status==='due')){const key=item.id+':'+item.dueAt;if(this.reminderSeen.has(key))continue;this.queue.push({id:'reminder:'+key,source:'提醒',title:item.title,body:'已到提醒时间，可在提醒待办中完成或稍后提醒。',priority:item.important?'urgent':'normal',reminderId:item.id});this.reminderSeen.add(key);if(this.reminderSeen.size>1000)this.reminderSeen.delete(this.reminderSeen.values().next().value);}}catch(error){this.reminders.error=error.message;}
     this.queue.queue=this.queue.queue.filter(n=>!n.id.startsWith('reminder:')||this.reminders.items.some(x=>x.status==='due'&&n.id==='reminder:'+x.id+':'+x.dueAt));
     this.snapshot.reminders={items:this.reminders.items,error:this.reminders.error};
 
@@ -38,7 +39,7 @@ class Companion {
     this.wasFocusing=focus.active;
     if(this.focus.consumeCompletion()){this.queue.push({id:'focus-complete:'+Date.now(),source:'专注',title:'本次专注已完成',priority:'urgent'});}
 
-    this.snapshot.activity = this.activity.state();this.snapshot.transfers={...this.transfer.view(),status:{...this.transferStatus}};
+    this.snapshot.projects=this.projects.view();this.snapshot.work=this.work.view();this.snapshot.activity = this.activity.state();this.snapshot.transfers={...this.transfer.view(),status:{...this.transferStatus}};
     if(this.music.raw.status==='ready'&&Number.isFinite(this.music.raw.observedAt)&&Date.now()-this.music.raw.observedAt>6000)
       this.music.ingest({status:'error',reason:'媒体信息已过期，等待网易云更新'});
     const media=this.music.view();const lyrics=this.lyrics.forTrack(media);
@@ -46,7 +47,7 @@ class Companion {
     this.publish(this.snapshot);
   }
   start() {
-    this.stopped = false;
+    this.stopped = false;this.work.start();this.projects.start();
     if (this.bridge) this.metrics = this.launch(['--metrics'], m => this.receive(m));
     else { this.snapshot.network = { ...this.snapshot.network, status: 'error', error: '缺少 Windows 桥接程序' }; }
     this.refresh();this.transferProbe.start();
@@ -99,7 +100,7 @@ class Companion {
   }
   invalidateMetrics(reason) {
     this.flow = new Throughput();const threshold=this.load.threshold;this.load=new LoadMonitor();this.load.configure(threshold);this.history.sample({});
-    this.snapshot.bridgeStatus = 'disconnected';
+    this.work.disconnect('codex');this.snapshot.bridgeStatus = 'disconnected';
     this.snapshot.network = { status:'error', error:reason, download:null, upload:null, tunnels:[] };
     this.snapshot.hardware = {cpu:null,memory:null,gpu:null,level:'unknown',animation:null};
   }
@@ -114,6 +115,7 @@ class Companion {
     } finally { this.busy = false; if (!this.stopped) this.emit(); }
   }
   receive(m) {
+    if(m.kind==='foreground'){if(/^\d{1,20}$/.test(m.handle)&&Number.isInteger(m.pid)&&m.pid>0&&m.pid!==process.pid)this.pasteTarget={handle:m.handle,pid:m.pid,at:Date.now()};return;}
     if (m.kind === 'metrics') {
       const speeds = this.flow.sample(m.adapters, m.at);
       this.history.sample({...m.hardware,...speeds});
@@ -140,9 +142,9 @@ class Companion {
       if(key!==before||media.state!=='playing')this.queue.queue=this.queue.queue.filter(n=>n.source!=='网易云音乐');
       if(this.musicBubbles&&media.status==='ready'&&media.state==='playing'&&key&&(key!==before||!wasPlaying))
         this.queue.push({id:'music:'+key+':'+Date.now(),source:'网易云音乐',title:'正在播放',body:media.title+(media.artist?' · '+media.artist:'')});
-    } else if (m.kind === 'bridge') this.snapshot.bridgeStatus = m.status;
+    } else if (m.kind === 'bridge') {this.snapshot.bridgeStatus = m.status;if(m.status==='ready')this.work.connected('codex');else if(['busy','disconnected','error'].includes(m.status))this.work.disconnect('codex');}
     else if (m.kind === 'codex') {
-      const n = this.activity.event(m); if (n) this.queue.push(n);
+      const result=this.work.receiveCodex(m);for(const n of result.notices)this.queue.push(n);
     } else if (m.kind === 'notification') this.queue.push({ ...m, id: 'windows:' + m.id });
     else if (m.kind === 'permission') this.snapshot.notifications = ({ Allowed: '已启用', Denied: '系统未允许', Unspecified: '等待授权', Unavailable: '系统接口不可用' })[m.status] || m.status;
     else if (m.kind === 'error') this.snapshot.notifications = m.message || '读取失败';
@@ -158,7 +160,10 @@ class Companion {
     this.transferStatus[source]=tasks.some(x=>x.source===source&&x.state==='active'&&Number.isFinite(x.percent))?'读取到公开进度':tasks.some(x=>x.source===source)?'检测到窗口，进度未知':available.includes(source)?'运行中，未提供可识别的进度':'未检测到窗口';this.emit();
   }
   setTransferSources(value){const previous=this.transferSources;this.transferSources={...value};for(const k of ['edge','chrome','thunder','baidu','install']){if(previous[k]===value[k])continue;this.transfer.setEnabled(k,value[k]===true);if(!value[k])this.transferStatus[k]='未启用';else this.transferStatus[k]=['edge','chrome'].includes(k)?'等待浏览器扩展':'等待检测';}this.transferProbe.configure(value);this.emit();}
-  nextNotice() { return this.queue.next(Date.now(),this.focus.view().active); }
+  setWorkEnabled(value){this.work.setEnabled(value);this.queue.queue=this.queue.queue.filter(n=>!n.id.startsWith('work:'));this.emit();}
+  nextNotice(quiet=false) { for(const [id,p]of this.noticeDeliveries)if(Date.now()-p.at>2500){this.noticeDeliveries.delete(id);this.deferNotice(p.notice,p.createdAt);};this.queue.queue=this.queue.queue.filter(n=>!n.id.startsWith('work:')||this.work.noticeCurrent(n.id));const n=this.queue.next(Date.now(),quiet||this.focus.view().active);if(n)this.noticeDeliveries.set(n.id,{notice:n,at:Date.now(),createdAt:n.createdAt||Date.now()});return n; }
+  deferNotice(n,createdAt){if(n.reminderId&&!this.reminders.items.some(x=>x.id===n.reminderId&&x.status==='due'))return;if(Date.now()-createdAt>300000||this.queue.queue.some(x=>x.id===n.id))return;this.queue.queue.unshift({...n,createdAt});if(this.queue.queue.length>20)this.queue.queue.pop();this.queue.nextAt=Date.now()+300;}
+  noticeResult(id,shown){const p=this.noticeDeliveries.get(id);if(!p)return;this.noticeDeliveries.delete(id);if(!shown)this.deferNotice(p.notice,p.createdAt);}
   setMusicEnabled(enabled){
     this.musicEnabled=enabled;clearTimeout(this.musicRestartTimer);
     if(!enabled){this.audioChild?.kill();this.audioChild=null;this.audioOutput(0);}
@@ -194,7 +199,7 @@ class Companion {
     this.snapshot.hooks = true; this.emit(); return file;
   }
   stop() {
-    this.stopped = true;this.transferProbe.stop();
+    this.stopped = true;this.noticeDeliveries.clear();this.projects.stop();this.work.stop();this.transferProbe.stop();
     clearInterval(this.refreshTimer); clearInterval(this.stateTimer);
     clearTimeout(this.restartTimer);
     clearTimeout(this.musicRestartTimer);

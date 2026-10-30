@@ -33,6 +33,8 @@ internal static class Program
             }
             if(args.Contains("--quick-choice")){Task.Run(()=>QuickChoices.Run(Arg(args,"--quick-choice"),Arg(args,"--value"))).GetAwaiter().GetResult();return;}
             if(args.Contains("--quick-control")){Task.Run(()=>QuickControls.Run(Arg(args,"--quick-control"),Arg(args,"--value"))).GetAwaiter().GetResult();return;}
+            if(args.Contains("--paste-self-test")){PasteBridge.SelfTest(parent);return;}
+            if(args.Contains("--paste-to-window")){Program.Emit(PasteBridge.Paste(Arg(args,"--paste-to-window"),Arg(args,"--target-pid"),parent));return;}
             if(args.Contains("--master-volume")){MasterVolume.Run(Arg(args,"--master-volume"));return;}
             if(args.Contains("--audio-peak")||args.Contains("--audio-peak-once")){Task.Run(()=>AudioPeak.Run(args.Contains("--audio-peak-once"))).GetAwaiter().GetResult();return;}
             if(args.Contains("--transfer-probe")){Task.Run(()=>TransferProbe.Run(args)).GetAwaiter().GetResult();return;}
@@ -41,6 +43,7 @@ internal static class Program
             if (args.Contains("--metrics"))
             {
                 _ = Task.Run(Listen);
+                _ = Task.Run(()=>PasteBridge.Watch(parent));
                 while (true) { Metrics(); Thread.Sleep(2000); }
             }
             if (args.Contains("--notification-status")) { NotificationAccess.Status(); return; }

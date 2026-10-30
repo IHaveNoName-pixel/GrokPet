@@ -8,3 +8,5 @@ fs.writeFileSync(path.join(root,'pet/cult-toolbar.js'),'// Cult UI CollabToolbar
 const cli=path.join(root,'node_modules/@tailwindcss/cli/dist/index.mjs');const result=spawnSync(process.execPath,[cli,'-i',path.join(root,'ui/cult.css'),'-o',path.join(root,'pet/cult.css'),'--minify'],{cwd:root,stdio:'pipe',windowsHide:true});
 if(result.status!==0)throw new Error(result.stderr.toString()||'Cult CSS build failed');
 console.log('Cult UI built: CollabToolbar and local CSS.');
+
+require('./build-arc.cjs');

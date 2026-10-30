@@ -11,3 +11,16 @@ Halo Search and Popover Form original MIT sources are vendored in ui/vendor/cult
 
 
 Timer, Halo Select and Floating Panel registry JSON sources were retrieved from https://www.cult-ui.com/r/{timer,halo-select,floating-panel}.json on 2026-10-29 and retained in ui/vendor/cult/reference/. pet/ui-controls.css, pet/halo-select.js and pet/radial.js adapt their clock, frosted dropdown, selection feedback and trigger-to-panel motion to the existing DOM/Electron hit-testing lifecycle. No additional React/Motion runtime is mounted in the pet. The timer display uses the existing persistent backend countdown instead of a second independent useTimer clock. The old Halo Search React bundle mentioned above is retained as an earlier experiment and is not loaded by current pet/index.html.
+
+
+# UIArc runtime controls (2026-10-29)
+
+The current renderer loads the locally bundled React UIArc controls in pet/arc-controls.js and pet/arc-controls.css. This supersedes the historical no-React control descriptions above; the old Halo Search bundle remains unloaded. No component CDN, external font or shader engine is loaded.
+
+Sources: https://uiarc.dev/r/{dropdown-menu,split-button,icon-morph,number-field,elastic-slider,time-picker,expandable-card,tooltip,countdown,arc-foundation,arc-motion-tokens}.json. Original registry JSON is retained under ui/vendor/arc/reference, with working TypeScript/CSS under ui/vendor/arc/registry. Free components use the MIT license, Copyright (c) 2026 Elia Kuratli; see UIARC-LICENSE.txt and https://uiarc.dev/license.
+
+Local changes: controlled open/expanded state; non-modal dropdowns; portal overlays with native click-region reporting; Chinese countdown/labels; virtualized minute options with viewport placement; animated chevrons. ui/arc-controls.tsx preserves existing DOM IDs, validation, command/chat/voice events and backend countdown state. React, React DOM, Motion, Radix and lucide are bundled locally; package-lock.json records versions.
+
+Swipe Actions source retrieved from https://uiarc.dev/r/swipe-actions.json on 2026-10-30; original JSON retained in reference/. Uses existing Motion/Radix dependencies. Local adaptation adds non-modal portals/native overlay reporting and Chinese labels. Reminder actions use the existing validated IPC, with full-swipe commit disabled and duplicate submissions locked.
+
+Carousel and Timeline retrieved from https://uiarc.dev/r/{carousel,timeline}.json on 2026-10-30. Sources/reference JSON retained under ui/vendor/arc/. Local changes: Chinese labels, existing DOM card slots, non-destructive layout switching, and controls excluded from carousel drags. Swipe Actions supports immediate removal for externally owned DOM cards; reminder row animations remain enabled.

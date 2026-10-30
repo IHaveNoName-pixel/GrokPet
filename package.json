@@ -13,6 +13,8 @@
   },
   "devDependencies": {
     "@paper-design/shaders-react": "^0.0.82",
+    "@radix-ui/react-dropdown-menu": "^2.2.1",
+    "@radix-ui/react-tooltip": "^1.4.1",
     "@tailwindcss/cli": "^4.3.3",
     "clsx": "^2.1.1",
     "electron": "41.10.6",

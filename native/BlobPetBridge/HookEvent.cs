@@ -36,7 +36,7 @@ internal static class HookEvent
         return false;
     }
     internal static object Normalize(JsonElement d,string eventName)=>new {
-        kind="codex",@event=eventName,session=Text(d,"session_id"),turn=Text(d,"turn_id"),message=Text(d,"last_assistant_message",240),
+        kind="codex",id=Text(d,"event_id") is {Length:>0} supplied?supplied:Guid.NewGuid().ToString("N"),at=DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),cwd=Text(d,"cwd",1024),@event=eventName,session=Text(d,"session_id"),turn=Text(d,"turn_id"),message=Text(d,"last_assistant_message",240),
         toolId=Text(d,"tool_use_id"),phase=eventName=="PreToolUse"?Phase(d):"",failed=eventName=="PostToolUse"&&d.TryGetProperty("tool_response",out var response)&&Failed(response)
     };
 }

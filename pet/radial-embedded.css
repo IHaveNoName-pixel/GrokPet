@@ -22,3 +22,12 @@ body.radial-preparing #info-dock,body.radial-preparing #bubble,body.radial-prepa
 
 /* Floating Panel: detail morphs from the selected card rather than replacing a whole column. */
 #radial .choice-panel{position:absolute;transform:none;min-height:220px;max-height:calc(100% - 32px);padding:15px;z-index:12;display:flex;flex-direction:column;gap:8px;transform-origin:top left;box-shadow:0 14px 38px #2034541a,0 2px 5px #20345408}#radial.choosing .node.wifi,#radial.choosing .node.volume,#radial.choosing .node.apps{visibility:visible!important}#radial.choosing .node.choice-origin{visibility:hidden!important}#radial .choice-panel header{margin:0;gap:10px;min-height:40px}#radial #choice-back{min-width:76px;width:auto;min-height:40px;padding:7px 10px;font:13px "Segoe UI","Microsoft YaHei UI",sans-serif;border:1px solid #e1e8f3;border-radius:11px;background:#f7faff;white-space:nowrap}#radial #choice-refresh{width:40px;min-width:40px;min-height:40px;border-radius:11px;border:1px solid #e1e8f3}#radial .detail-trigger{width:100%;min-height:40px;padding:7px 4px;display:flex;gap:8px;align-items:center;justify-content:space-between;text-align:left}#radial .detail-trigger span{font-size:11px;color:#8296b5}#radial .choice-panel #choice-list{min-height:0;flex:1;overflow-y:auto;overscroll-behavior:contain}#radial #choice-system{min-height:38px;border-radius:11px;background:#f7faff;border:1px solid #e1e8f3;color:#6584b5}#radial .choice-panel .halo-select-trigger{min-height:38px}
+
+body.radial-open #radial{z-index:6}#radial .choice-panel{background:#fff;transition:height .24s ease-out}
+@media(prefers-reduced-motion:reduce){#radial .choice-panel{transition:none}}
+
+/* Keep the companion above radial lines and panels without intercepting controls. */
+body.radial-open #pet-hit{z-index:20;pointer-events:none!important}
+
+/* Finish folding the shortcut dock before the radial stage is committed. */
+body.radial-collapsing #info-dock,body.radial-collapsing #info-dock *{pointer-events:none!important}

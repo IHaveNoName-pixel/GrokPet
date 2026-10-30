@@ -7,14 +7,14 @@ test('load animation is only used for idle; every activity and autonomous action
   assert.equal(core.selectAnimation('idle',{load:'scared'}),'scared');
   assert.equal(core.selectAnimation('happy',{interaction:true,activity:'writing',load:'scared'}),'happy');
 });
-test('prompt, search, edit, tool return and successful completion have distinct phases',()=>{
+test('prompt, search, edit, tool return and unverified turn completion have distinct phases',()=>{
   const a=new Activity();const e={session:'a',turn:'1'};
   a.event({...e,event:'UserPromptSubmit'},100);assert.equal(a.state(100),'thinking');assert.ok(EVENTS.includes('PreToolUse'));
   a.event({...e,event:'PreToolUse',toolId:'s',phase:'searching'},200);assert.equal(a.state(200),'searching');
   a.event({...e,event:'PostToolUse',toolId:'s'},300);assert.equal(a.state(300),'thinking');
   a.event({...e,event:'PreToolUse',toolId:'w',phase:'writing'},400);assert.equal(a.state(400),'writing');
   a.event({...e,event:'PostToolUse',toolId:'w'},500);a.event({...e,event:'Stop'},600);
-  assert.equal(a.state(600),'proud');assert.equal(a.state(2400),'celebrate');assert.equal(a.state(6000),null);
+  assert.equal(a.state(600),null);assert.equal(a.state(2400),null);assert.equal(a.state(6000),null);
 });
 test('tool failure is confused, final unresolved failure is sad, later success clears it',()=>{
   const a=new Activity();const e={session:'a',turn:'1'};
@@ -23,7 +23,7 @@ test('tool failure is confused, final unresolved failure is sad, later success c
   a.event({session:'b',turn:'2',event:'UserPromptSubmit'},400);
   a.event({session:'b',turn:'2',event:'PostToolUse',failed:true},500);
   a.event({session:'b',turn:'2',event:'PostToolUse',failed:false},600);
-  a.event({session:'b',turn:'2',event:'Stop'},700);assert.equal(a.state(700),'proud');
+  a.event({session:'b',turn:'2',event:'Stop'},700);assert.equal(a.state(700),null);
 });
 test('parallel tools retain active phase and old-turn events cannot replace the current turn',()=>{
   const a=new Activity();const e={session:'a',turn:'new'};a.event({...e,event:'UserPromptSubmit'},100);

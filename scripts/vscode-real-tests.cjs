@@ -1,0 +1,11 @@
+'use strict';
+exports.run=async()=>{
+ const vscode=require('vscode'),fs=require('node:fs'),assert=require('node:assert/strict'),path=require('node:path');const wait=ms=>new Promise(r=>setTimeout(r,ms)),base=process.env.GROKPET_VSCODE_TEST;
+ const until=async predicate=>{for(let n=0;n<350;n++){let v;try{v=JSON.parse(fs.readFileSync(path.join(base,'bridge-state.json'),'utf8'));}catch{}if(v&&predicate(v))return v;await wait(100);}throw Error('VS Code summary timeout');};
+ const extension=vscode.extensions.getExtension('grokpet-local.grokpet-work-bridge');assert.ok(extension,'development extension loaded');await extension.activate();await vscode.commands.executeCommand('grokpet.pair',vscode.Uri.file(path.join(base,'data/vscode-pair.json')));
+ const folder=vscode.workspace.workspaceFolders[0],uri=vscode.Uri.file(path.join(folder.uri.fsPath,'app.js')),diagnostics=vscode.languages.createDiagnosticCollection('grokpet-real-smoke');
+ try{diagnostics.set(uri,[new vscode.Diagnostic(new vscode.Range(0,0,0,1),'fixture error',vscode.DiagnosticSeverity.Error),new vscode.Diagnostic(new vscode.Range(0,0,0,1),'fixture warning',vscode.DiagnosticSeverity.Warning)]);await until(v=>v.sessions.some(s=>s.errors===1&&s.warnings===1));
+  const started=await vscode.debug.startDebugging(folder,{type:'node',request:'launch',name:'GrokPet isolated debug fixture',program:uri.fsPath,runtimeExecutable:process.env.GROKPET_TEST_NODE,stopOnEntry:true,console:'internalConsole'});assert.equal(started,true,'real Node debugger starts');await until(v=>v.sessions.some(s=>s.debugging));await vscode.debug.stopDebugging();await until(v=>v.sessions.some(s=>s.connected&&!s.debugging));
+  diagnostics.clear();await until(v=>v.sessions.some(s=>s.errors===0&&s.warnings===0));console.log('Real pairing, diagnostics and debugger passed; waiting for heartbeat expiry.');await vscode.commands.executeCommand('grokpet.disconnect');await until(v=>v.sessions.some(s=>!s.connected));fs.writeFileSync(path.join(base,'result.json'),JSON.stringify({passed:true,checks:['real VS Code activation','one-use pairing','real diagnostic collection','real Node debugger start/stop','diagnostic clearing','disconnect heartbeat expiry']}));
+ }finally{diagnostics.dispose();await vscode.debug.stopDebugging();}
+};

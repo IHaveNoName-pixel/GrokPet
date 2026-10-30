@@ -40,7 +40,7 @@ class Activity {
       this.lastTurns.set(e.session, e.turn);
     }
     const key = e.session + ':' + turn;
-    if (e.event === 'UserPromptSubmit') this.lastTurns.set(e.session, turn);
+    if (e.event === 'UserPromptSubmit') {this.lastTurns.set(e.session, turn);this.celebrateUntil=0;this.outcome=null;}
     if (e.event === 'Stop' || e.event === 'Interrupt') {
       if (this.done.has(key)) return null;
       this.done.set(key, now);
@@ -48,8 +48,8 @@ class Activity {
       if (!active?.turn || !e.turn || active.turn === e.turn) this.tasks.delete(e.session);
       if (this.done.size > 200) this.done.delete(this.done.keys().next().value);
       const failed=e.event==='Stop'&&active?.failed===true;
-      if (e.event === 'Stop') {this.celebrateUntil = now + 5000;this.outcome={failed,at:now};}
-      return { id: key + ':' + e.event, source: 'Codex', title: e.event==='Interrupt'?'任务已中断':failed?'本轮结束，最后工具状态为失败':'任务已完成', body: typeof e.message === 'string' ? e.message.slice(0, 240) : '' };
+      if (failed) this.result(true,now);
+      return { id: key + ':' + e.event, source: 'Codex', title: e.event==='Interrupt'?'任务已中断':failed?'本轮结束，最后工具状态为失败':'本轮对话已结束（任务结果未验收）', body: typeof e.message === 'string' ? e.message.slice(0, 240) : '' };
     }
     const active = this.tasks.get(e.session);
     if (e.event === 'PostToolUse' && active?.turn && e.turn && active.turn !== e.turn) return null;
@@ -58,7 +58,7 @@ class Activity {
     task.tools||=new Map();
     task.completed||=new Set();
     if(['PreToolUse','PostToolUse'].includes(e.event)&&e.toolId&&task.completed.has(e.toolId))return null;
-    if(e.event==='PreToolUse')task.tools.set(e.toolId||'current',{phase:['searching','writing'].includes(e.phase)?e.phase:'working',at:now});
+    if(e.event==='PreToolUse'){task.tools.set(e.toolId||'current',{phase:['searching','writing'].includes(e.phase)?e.phase:'working',at:now});while(task.tools.size>128)task.tools.delete(task.tools.keys().next().value);}
     if(e.event==='PostToolUse'){
       task.tools.delete(e.toolId||'current');task.failed=e.failed===true;
       if(e.toolId){task.completed.add(e.toolId);if(task.completed.size>500)task.completed.delete(task.completed.values().next().value);}
@@ -69,9 +69,12 @@ class Activity {
     if(this.tasks.size>100)this.tasks.delete(this.tasks.keys().next().value);
     return e.event === 'PermissionRequest' ? { id: key + ':approval', source: 'Codex', title: '需要你处理', body: 'Codex 正在等待审批，请回到原聊天确认。',priority:'urgent' } : null;
   }
+  result(failed,now=Date.now()){this.celebrateUntil=now+5000;this.outcome={failed:failed===true,at:now};}
   state(now = Date.now()) {
     const active = [...this.tasks.values()].filter(t => now - t.at < 30 * 60 * 1000);
     if (active.some(t => t.state === 'alerting')) return 'alerting';
+    if(now<this.celebrateUntil&&this.outcome?.failed)return 'sad';
+    if (active.some(t=>now<t.confusedUntil))return 'confused';
     if (active.length) {
       const latest=active.sort((a,b)=>b.at-a.at)[0];
       if(now<latest.confusedUntil)return 'confused';
@@ -99,12 +102,13 @@ class NoticeQueue {
     this.seen.set(n.id, now);
     if (this.seen.size > 300) this.seen.delete(this.seen.keys().next().value);
     const text = (v, max) => typeof v === 'string' ? v.replace(/[\u0000-\u0008\u000b-\u001f]/g, '').slice(0, max) : '';
-    const notice={id:n.id,source:text(n.source,40),title:text(n.title,80),body:text(n.body,240),priority:n.priority==='urgent'?'urgent':'normal'};
+    const notice={id:n.id,source:text(n.source,40),title:text(n.title,80),body:text(n.body,240),priority:n.priority==='urgent'?'urgent':'normal',createdAt:now,...(typeof n.reminderId==='string'&&n.reminderId.length<100?{reminderId:n.reminderId}:{})};
     if(notice.priority==='urgent'){this.queue.unshift(notice);this.nextAt=0;}else this.queue.push(notice);
     if(this.queue.length>20){const index=this.queue.findIndex(item=>item.priority!=='urgent');this.queue.splice(index<0?this.queue.length-1:index,1);}
     return true;
   }
   next(now = Date.now(), quiet = false) {
+    this.queue=this.queue.filter(n=>!n.createdAt||now-n.createdAt<300000);
     if (now < this.nextAt || !this.queue.length) return null;
     const index=quiet?this.queue.findIndex(n=>n.priority==='urgent'):0;if(index<0)return null;
     this.nextAt = now + 8000;

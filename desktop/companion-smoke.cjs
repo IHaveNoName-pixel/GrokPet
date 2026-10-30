@@ -62,7 +62,7 @@ module.exports = async c => {
   await hook('PostToolUse',{tool_response:{exit_code:0}});
   c.companion.queue.nextAt = 0;
   await hook('Stop');
-  assert.equal(c.companion.activity.state(), 'proud');
+  assert.equal(c.companion.activity.state(), null);
   c.tick(); await wait(150);
   assert.match(await c.win.webContents.executeJavaScript('document.getElementById("bubble").textContent'), /示例任务已完成/);
   c.companion.stop();

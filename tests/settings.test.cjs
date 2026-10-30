@@ -39,3 +39,4 @@ test('HUD item selection, size and permanent hiding survive saving and reopening
 });
 
 test('summary ordering and limit persist and discard invalid entries',t=>{const file=fixture(t);new SettingsStore(file).save({summaryOrder:['gpu','cpu','gpu','bad'],summaryMax:3});const s=new SettingsStore(file).load();assert.deepEqual(s.summaryOrder,['gpu','cpu','memory','codex','network','vpn']);assert.equal(s.summaryMax,3);});
+test('work center switch defaults on, persists off, and rejects nonboolean stored values',t=>{const file=fixture(t),store=new SettingsStore(file);assert.equal(store.load().workEnabled,true);store.save({workEnabled:false});assert.equal(new SettingsStore(file).load().workEnabled,false);store.save({workEnabled:'false'});assert.equal(store.load().workEnabled,true);});

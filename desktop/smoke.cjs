@@ -8,7 +8,7 @@ const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 module.exports = async function smoke(c) {
   const { win, root } = c;
   const errors = [];
-  win.webContents.on('console-message', (_event, level, message) => { if (level === 3) errors.push(message); });
+  win.webContents.on('console-message', event => { if (event.level === 'error' || event.level === 3) {errors.push(event.message);console.error('Renderer error location:',event.sourceId,event.lineNumber,event.message);} });
   const read = expression => win.webContents.executeJavaScript(expression);
   for (let i = 0; i < 60 && !(await read('!!bot')); i++) await delay(100);
   assert.equal(await read('!!bot && !!bot.body.getAttribute("d")'), true, 'SVG character initialized');
@@ -88,7 +88,9 @@ module.exports = async function smoke(c) {
   const bounds = win.getBounds();
   const area = screen.getDisplayMatching(bounds).workArea;
   const recoveredSize=await read('settings.size');assert.ok(bounds.x+180-recoveredSize/2>=area.x&&bounds.y+216-recoveredSize/2>=area.y,'lost pet recovered inside real work area');
-  c.updateSettings({ roam: true,hudMode:'hidden' });await delay(750);
+  // Repeated smoke runs must not inherit an excited mood that intentionally suppresses idle roaming.
+  c.life.values.mood=70;c.life.values.energy=80;
+  c.updateSettings({ roam: true,hudMode:'hidden',personality:{...(await read('settings.personality')),activity:'normal',scheduleEnabled:false} });await delay(750);
   c.brain.lastInteraction = Date.now() - 10000;
   c.brain.until = 0; c.brain.nextIdle = Date.now() + 12000;
   // Use the opposite corner from the real pointer so the hover stop does not suppress roaming.

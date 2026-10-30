@@ -27,7 +27,7 @@ test('task completion cannot clear a different running task and duplicate comple
   a.event({event:'PermissionRequest',session:'b',turn:'1'},300);
   assert.equal(a.state(300),'alerting');
   a.event({event:'Stop',session:'b',turn:'1'},400);
-  assert.equal(a.state(400),'proud');
+  assert.equal(a.state(400),null);
   assert.equal(a.state(10000),null);
 });
 test('hook merge preserves existing handlers and is idempotent without approval decisions', () => {
@@ -83,7 +83,7 @@ test('sessions without turn IDs still complete multiple consecutive turns', () =
   assert.ok(a.event({event:'Stop',session:'a'},200));
   a.event({event:'UserPromptSubmit',session:'a'},300);
   assert.ok(a.event({event:'Stop',session:'a'},400));
-  assert.equal(a.state(400),'proud');
+  assert.equal(a.state(400),null);
   assert.equal(a.event({event:'Stop',session:'a'},401),null);
 });
 test('losing the system bridge clears stale hardware values and load animations', () => {
@@ -101,7 +101,7 @@ test('a prompt without a turn ID can bind to the subsequent tool and completion 
   a.event({event:'UserPromptSubmit',session:'a'},100);
   a.event({event:'PostToolUse',session:'a',turn:'real'},200);
   a.event({event:'Stop',session:'a',turn:'real'},300);
-  assert.equal(a.state(300),'proud');
+  assert.equal(a.state(300),null);
 });
 test('a duplicated old completion cannot bind a new prompt which has no turn ID yet', () => {
   const a = new Activity();
@@ -111,5 +111,5 @@ test('a duplicated old completion cannot bind a new prompt which has no turn ID 
   a.event({event:'Stop',session:'a',turn:'old'},400);
   a.event({event:'PostToolUse',session:'a',turn:'new'},500);
   a.event({event:'Stop',session:'a',turn:'new'},600);
-  assert.equal(a.state(600),'proud');
+  assert.equal(a.state(600),null);
 });

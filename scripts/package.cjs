@@ -21,7 +21,7 @@ if(iconResult.error || iconResult.status!==0) throw new Error('EXE icon update f
 fs.renameSync(stagedExecutable, executable);
 const appDir = path.join(output, 'resources', 'app');
 fs.mkdirSync(appDir, { recursive: true });
-for (const name of ['desktop', 'pet', 'replica', 'assets', 'browser']) {
+for (const name of ['desktop', 'pet', 'replica', 'assets', 'browser', 'vscode']) {
   fs.cpSync(path.join(root, name), path.join(appDir, name), { recursive: true });
 }
 const bridge = path.join(root, '.runtime', 'bridge');
@@ -30,13 +30,15 @@ fs.cpSync(bridge, path.join(appDir, 'bridge'), { recursive: true });
 const sourcePackage = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8'));
 fs.writeFileSync(path.join(appDir, 'package.json'), JSON.stringify({ name: sourcePackage.name, version: sourcePackage.version, main: sourcePackage.main, private: true }, null, 2));
 fs.copyFileSync(path.join(root, 'README.md'), path.join(output, 'README.md'));
+fs.copyFileSync(path.join(root, 'AGENTS.md'), path.join(output, 'AGENTS.md'));
 fs.mkdirSync(path.join(output,'third-party'),{recursive:true});fs.copyFileSync(path.join(root,'third-party/CULT-UI-LICENSE.txt'),path.join(output,'third-party/CULT-UI-LICENSE.txt'));
+fs.copyFileSync(path.join(root,'third-party/UIARC-LICENSE.txt'),path.join(output,'third-party/UIARC-LICENSE.txt'));
 fs.copyFileSync(path.join(root,'third-party/TAILWIND-LICENSE.txt'),path.join(output,'third-party/TAILWIND-LICENSE.txt'));
 fs.copyFileSync(path.join(root,'third-party/README.md'),path.join(output,'third-party/README.md'));
 const verification = path.join(root, 'docs', 'codex-companion-verification.md');
 if (fs.existsSync(verification)) fs.copyFileSync(verification, path.join(output, 'VERIFICATION.md'));
 fs.mkdirSync(path.join(output, 'docs'), { recursive: true });
-for (const name of ['desktop-pet-verification.md', 'codex-companion-verification.md', 'netease-music-verification.md','activity-animation-verification.md','assistant-verification.md','cult-ui-verification.md']) {
+for (const name of ['performance-2026-10-30.md','index.md','DEVELOPMENT.md','USER_GUIDE.md','desktop-pet-verification.md', 'codex-companion-verification.md', 'netease-music-verification.md','activity-animation-verification.md','assistant-verification.md','cult-ui-verification.md','uiarc-controls-verification-2026-10-29.md','work-companion-v03.md','radial-origin-motion-fix-2026-10-29.md','work-stage1-verification.md','work-stage2a-verification.md','chat-history-and-swipes-2026-10-30.md','dock-clipboard-work-verification-2026-10-30.md']) {
   fs.copyFileSync(path.join(root, 'docs', name), path.join(output, 'docs', name));
 }
 fs.writeFileSync(path.join(output, '启动桌宠.cmd'), '@echo off\r\ncd /d "%~dp0"\r\nset ELECTRON_RUN_AS_NODE=\r\nstart "" "%~dp0BlobPet.exe"\r\n');

@@ -5,7 +5,7 @@ module.exports=async c=>{
   const read=code=>c.win.webContents.executeJavaScript(code);const previous=await read('window.pet.ready()');
   c.companion.stop();await wait(250);c.stopTicker();c.setPaused(false);
   c.brain.until=0;c.brain.lastInteraction=Date.now();c.brain.nextIdle=Date.now()+60000;
-  c.companion.activity=new Activity();c.companion.queue.queue=[];
+  c.companion.activity=new Activity();c.companion.work=new (require('./work/work-controller.cjs').WorkController)({activity:c.companion.activity});c.companion.queue.queue=[];
   c.companion.snapshot.hardware.animation='scared';c.companion.snapshot.hardware.level='critical';
   c.companion.music.ingest({status:'none',state:'stopped'});
   c.updateSettings({hudMode:'always',musicEnabled:true,bubbles:true});
@@ -21,7 +21,8 @@ module.exports=async c=>{
   event('PostToolUse',{toolId:'edit',failed:true});await show('confused');event('Stop');await show('sad');
   await read('say("工具执行失败",2000)');await wait(700);
   fs.writeFileSync(path.join(output,'codex-failure-preview.png'),(await require('./capture-smoke.cjs')(c.win,'failure animation')).toPNG());
-  event('UserPromptSubmit',{turn:'two'});event('Stop',{turn:'two'});await show('proud');
+  event('UserPromptSubmit',{turn:'two'});event('Stop',{turn:'two'});await show('scared');
+  c.companion.work.ingest({id:'verified-animation-fixture',source:'codex',projectId:'unassigned',sessionId:'animation-fixture',turnId:'two',type:'task.verified',status:'succeeded',timestamp:Date.now(),metadata:{verification:'explicit',evidence:'Internal animation fixture'}});await show('proud');
   c.companion.activity.outcome.at-=1600;await show('celebrate');
   c.companion.activity.celebrateUntil=0;
   c.companion.music.ingest({status:'ready',title:'fixture',artist:'test',state:'playing',observedAt:Date.now()});await show('dictating');

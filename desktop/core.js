@@ -10,6 +10,9 @@ function normalizeSettings(raw) {
   const coord = v => Number.isFinite(v) && Math.abs(v) < 100000 ? Math.round(v) : null;
   return {
     version: 1,
+    vscodeEnabled:s.vscodeEnabled===true,
+    dockLayout:s.dockLayout==='carousel'?'carousel':'list',
+    workEnabled:typeof s.workEnabled==='boolean'?s.workEnabled:true,
     personality:normalizePersonality(s.personality),
     wellbeing:normalizeWellbeing(s.wellbeing),
     timerScene:normalizedScene(s.timerScene||{id:'focus',name:'专注',kind:'focus',minutes:s.focusMinutes??25,visual:s.focusVisual}),
@@ -27,7 +30,7 @@ function normalizeSettings(raw) {
     alwaysOnTop: typeof s.alwaysOnTop === 'boolean' ? s.alwaysOnTop : true,
     bubbles: typeof s.bubbles === 'boolean' ? s.bubbles : true,
     hudMode: ['hover', 'always', 'hidden'].includes(s.hudMode) ? s.hudMode : 'hover',
-    dockItems:Object.fromEntries(['music','transfer','toolbar','system','focus','load'].map(k=>[k,s.dockItems?.[k]!==false])),
+    dockItems:Object.fromEntries(['music','transfer','toolbar','system','focus','load','work'].map(k=>[k,s.dockItems?.[k]!==false])),
     hudFontSize: [12, 14, 16].includes(s.hudFontSize) ? s.hudFontSize : 14,
     hudItems: Object.fromEntries(['codex', 'network', 'vpn', 'cpu', 'memory', 'gpu', 'music'].map(key => [key, typeof s.hudItems?.[key] === 'boolean' ? s.hudItems[key] : key!=='music'])),
     summaryItems: Object.fromEntries(['codex','network','vpn','cpu','memory','gpu'].map(key => [key, typeof s.summaryItems?.[key] === 'boolean' ? s.summaryItems[key] : ['cpu','memory','gpu'].includes(key)])),

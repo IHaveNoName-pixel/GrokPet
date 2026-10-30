@@ -1,5 +1,10 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('pet', {
+  clipboard:r=>ipcRenderer.invoke('pet:clipboard',r),
+  onClipboard:cb=>ipcRenderer.on('pet:clipboard-changed',(_e,v)=>cb(v)),
+  dockLayout:value=>ipcRenderer.invoke('pet:dock-layout',value),
+  bubbleHold:until=>ipcRenderer.send('pet:bubble-hold',until),
+  noticeResult:(id,shown)=>ipcRenderer.send('pet:notice-result',id,shown),
   uiRegions:rects=>ipcRenderer.send('pet:ui-regions',rects),
   pointerReady:()=>ipcRenderer.send('pet:pointer-ready'),
   voice:value=>ipcRenderer.invoke('pet:voice',value),
@@ -10,6 +15,7 @@ contextBridge.exposeInMainWorld('pet', {
   quickChoice:c=>ipcRenderer.invoke('pet:quick-choice',c),
   onRadialPrepare:callback=>ipcRenderer.on('pet:radial-prepare',(_e,value)=>callback(value)),
   radialPrepared:value=>ipcRenderer.send('pet:radial-prepared',value),
+  radialCommit:id=>ipcRenderer.sendSync('pet:radial-commit',id),
   onRadialState:callback=>ipcRenderer.on('pet:radial-state',(_e,value)=>callback(value)),
   quickCapture:value=>ipcRenderer.send('pet:quick-capture',value),
   quickStatus:()=>ipcRenderer.invoke('pet:quick-status'),
@@ -24,6 +30,9 @@ contextBridge.exposeInMainWorld('pet', {
   sceneAction:value=>ipcRenderer.invoke('pet:scene-action',value),
   ready: () => ipcRenderer.invoke('pet:ready'),
   hudSettings: value => ipcRenderer.invoke('pet:hud-settings', value),
+  vscode:r=>ipcRenderer.invoke('pet:vscode',r),
+  projects:request=>ipcRenderer.invoke('pet:projects',request),
+  workSettings:value=>ipcRenderer.invoke('pet:work-settings',value),
   transferSettings:value=>ipcRenderer.invoke('pet:transfer-settings',value),
   startup: value => ipcRenderer.invoke('pet:startup', value),
   musicSettings:value=>ipcRenderer.invoke('pet:music-settings',value),

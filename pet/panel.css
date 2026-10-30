@@ -11,3 +11,9 @@
 #master-volume{appearance:none;min-width:120px;height:6px;padding:0;border:0;border-radius:8px;background:#e7edf8;accent-color:#86a9ee;cursor:pointer}#master-volume::-webkit-slider-thumb{appearance:none;width:20px;height:20px;border-radius:50%;background:#fff;border:2px solid #86a9ee;box-shadow:0 2px 5px #34496320}#master-volume-value{min-width:38px;color:#6689c1;font-variant-numeric:tabular-nums}#launch-list p{display:flex;gap:6px;align-items:center;flex-wrap:wrap}#launch-list span{min-width:0;overflow-wrap:anywhere;font-size:12px}
 
 #quick-settings>button{margin-inline-end:6px;margin-block:4px;min-height:34px}
+
+#work-sessions p,#work-events p{overflow-wrap:anywhere;padding:8px 0;border-bottom:1px solid #edf1f6}#work-events{max-height:260px;overflow:auto;overscroll-behavior:contain}
+
+.git-project{padding:16px 0;border-bottom:1px solid #e3e9f2}.git-project button{margin-right:8px}.git-path{overflow-wrap:anywhere}.git-state{font-weight:600}.git-state-conflict,.git-state-unavailable{color:#ad4939}
+
+.git-project>strong{display:block;font-size:14px;line-height:1.5;color:#34435c}

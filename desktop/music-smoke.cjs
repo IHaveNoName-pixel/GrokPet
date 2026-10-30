@@ -37,9 +37,9 @@ module.exports=async c=>{
     assert.deepEqual(actions,['previous','toggle','next'],'real renderer buttons reach trusted IPC and companion');
   }finally{c.companion.controlMedia=originalControl;}
   await panelRead('window.pet.musicCalibrate(3100)');
-  c.updateSettings({size:192,hudFontSize:16,hudItems:{codex:true,network:true,vpn:true,cpu:true,memory:true,gpu:true,music:true}});await delay(100);
-  const geometry=await read('(()=>{const box=id=>{const r=document.getElementById(id).getBoundingClientRect();return {top:r.top,bottom:r.bottom};};return {pet:box("pet-hit"),dock:box("info-dock"),bubble:box("bubble")};})()');
-  assert.ok(geometry.dock.top>geometry.pet.bottom&&geometry.dock.bottom<=480,'four HUD rows at largest font and pet size fit below pet');
+  c.updateSettings({size:192,hudFontSize:16,hudItems:{codex:true,network:true,vpn:true,cpu:true,memory:true,gpu:true,music:true}});await delay(600);
+  const geometry=await read('(()=>{const box=id=>{const r=document.getElementById(id).getBoundingClientRect();return {top:r.top,bottom:r.bottom};};return {pet:box("pet-hit"),dock:box("info-dock"),bubble:box("bubble"),height:innerHeight};})()');
+  assert.ok(geometry.dock.top>geometry.pet.bottom&&geometry.dock.bottom<=geometry.height,'four HUD rows at largest font and pet size fit below pet');
   assert.ok(geometry.bubble.bottom<geometry.pet.top,'lyric stays above pet, clear of bottom information and controls');
   assert.equal(await read('getComputedStyle(document.getElementById("telemetry")).visibility'),'visible','information remains visible alongside message bubble');
   c.stopTicker();
@@ -47,6 +47,7 @@ module.exports=async c=>{
   c.win.webContents.send('pet:gaze',{x:180,y:320});await delay(80);
   assert.equal(await read('document.body.classList.contains("hover")'),true,'moving toward controls preserves hover');
   c.win.webContents.send('pet:gaze',{x:0,y:0});await delay(80);
+  assert.equal(await read('getComputedStyle(document.getElementById("music-controls")).visibility'),'visible','short exit retains dock during hover grace');await delay(3300);c.win.webContents.send('pet:gaze',{x:0,y:0});await delay(80);
   assert.equal(await read('getComputedStyle(document.getElementById("music-controls")).visibility'),'hidden');
   c.updateSettings({hudMode:'always'});c.startTicker();
   await read('document.body.style.background="#eef1e8"');await delay(150);

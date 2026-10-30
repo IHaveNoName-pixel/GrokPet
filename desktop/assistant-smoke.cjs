@@ -42,17 +42,15 @@ module.exports=async c=>{
   await read('document.getElementById("bubble").dispatchEvent(new MouseEvent("mouseenter"))');await wait(2200);assert.equal(await read('document.getElementById("bubble").classList.contains("show")'),true,'hover holds the bubble open');
   await read('document.getElementById("bubble").classList.remove("show")');await wait(80);assert.equal(c.getBubbleRegion(),null,'hidden bubble does not intercept mouse');
   await read('toolbarButtons[0].click()');await wait(60);
-  assert.ok(await read('document.getElementById("quick-form").getAnimations().some(a=>a.playState==="running")'), 'opening animation is running');await wait(280);
+  assert.equal(await read('document.getElementById("quick-form").hidden'),false,'conversation composer remains visible');await wait(280);
   // Exercise Chromium hit testing and pointer delivery rather than invoking DOM click().
   await read('window.pet.controlRegion({x:5,y:350,width:350,height:500})');await wait(100);
   assert.ok(c.getControlRegion() && c.getControlRegion().height>0, 'partially clipped dock keeps a valid clickable region');
   await read('updateMusicControls()');await wait(100);
   c.setIgnored(false);
-  const closePoint=await read('(()=>{const r=document.getElementById("quick-close").getBoundingClientRect();return {x:Math.floor(r.x+r.width/2),y:Math.floor(r.y+r.height/2)}})()');
-  assert.equal(await read('document.elementFromPoint('+closePoint.x+','+closePoint.y+').id'),'quick-close');
-  c.win.webContents.sendInputEvent({type:'mouseMove',...closePoint});c.win.webContents.sendInputEvent({type:'mouseDown',button:'left',clickCount:1,...closePoint});c.win.webContents.sendInputEvent({type:'mouseUp',button:'left',clickCount:1,...closePoint});await wait(450);
-  assert.equal(await read('document.getElementById("quick-form").hidden'),true,'pointer closes the quick input');
-  await read('quickOpen("codex");quickClose();quickOpen("codex")');await wait(260);assert.equal(await read('document.getElementById("quick-form").hidden'),false,'reopening cancels pending close');await read('quickClose(true)');
+  await read('document.getElementById("quick-input").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}))');await wait(100);
+  assert.equal(await read('document.getElementById("quick-form").hidden'),false,'Escape preserves the persistent composer');assert.equal(await read('quickExpanded'),false,'Escape releases active conversation hold');
+  await read('quickOpen("codex");quickClose();quickOpen("codex")');await wait(260);assert.equal(await read('document.getElementById("quick-form").hidden'),false,'rapid mode switching keeps composer available');await read('quickClose(true)');
   await read('toolbarButtons[0].click()');await wait(100);
   await read('document.getElementById("quick-input").focus()');await c.win.webContents.insertText('胶囊问答');await read('document.getElementById("quick-form").requestSubmit()');await wait(150);
   assert.ok(calls.some(call=>call.method==='turn/start'));finishTurn();await wait(80);assert.equal(await read('document.getElementById("quick-send").disabled'),true,'wait until the turn finishes');assert.equal(await read('document.getElementById("quick-stop").hidden'),false,'pet owner can stop');
@@ -63,7 +61,7 @@ module.exports=async c=>{
   c.updateSettings({size:192,hudFontSize:16});await read('Promise.all(document.getElementById("quick-form").getAnimations().map(a=>a.finished.catch(()=>{})))');await read('document.body.style.background="#eef1e8"');
   const capsule=await read('(()=>{const r=document.getElementById("quick-form").getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom};})()');assert.ok(capsule.x>=0&&capsule.right<=await read('innerWidth')&&capsule.bottom<=await read('innerHeight'),'expanded capsule stays inside at largest pet size: '+JSON.stringify({...capsule,height:await read('innerHeight')}));
   fs.writeFileSync(path.join(output,'cult-capsule-expanded.png'),(await require('./capture-smoke.cjs')(c.win,'expanded capsule')).toPNG());
-  await read('document.getElementById("quick-input").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));document.body.style.background="transparent"');await wait(420);assert.equal(await read('document.getElementById("quick-form").hidden'),true);
+  await read('document.getElementById("quick-input").dispatchEvent(new KeyboardEvent("keydown",{key:"Escape",bubbles:true}));document.body.style.background="transparent"');await wait(420);assert.equal(await read('document.getElementById("quick-form").hidden'),false);
   c.updateSettings({size:128,hudFontSize:14});
   fs.writeFileSync(path.join(output,'assistant-chatgpt.png'),(await require('./capture-smoke.cjs')(window,'ChatGPT web mode')).toPNG());
   await ui('document.getElementById("mode").value="codex";document.getElementById("mode").dispatchEvent(new Event("change"))');

@@ -121,3 +121,48 @@ body[data-voice=recording] #quick-form{border-color:#e4aca8}#quick-form [hidden]
 #info-dock{display:grid;grid-template-columns:minmax(0,302px) 40px;column-gap:8px;row-gap:6px;align-items:start;justify-items:stretch;width:350px;max-width:350px}#info-dock>#dock-actions{display:contents}#quick-form{grid-column:1;grid-row:1;width:100%}#dock-actions>.radial-launch{grid-column:2;grid-row:1;align-self:end;justify-self:center}#info-dock>.quick-card,#info-dock>#focus-card,#info-dock>#music-controls,#info-dock>#transfer-indicator,#info-dock>#telemetry{grid-column:1;width:100%;max-width:100%;margin:0}#quick-form{order:0}#info-dock #dock-actions>.radial-launch{order:0}
 
 #quick-form #reply-tools button{width:auto;flex:none;white-space:nowrap}
+
+#quick-form #chat-history{width:100%;min-width:0;border-bottom:1px solid #e7edf6;padding:0 0 6px}#quick-form #chat-history-toggle{width:100%;display:flex;justify-content:space-between;background:transparent;border:0;color:#6a7f9f;font-size:11px;min-height:28px;padding:3px 2px;text-align:left}#chat-history-toggle:after{content:'⌃';font-size:16px}#chat-history-toggle[aria-expanded=false]:after{content:'⌄'}#chat-history-list{height:148px;max-height:148px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#b6c6df transparent;user-select:text;outline-offset:-2px}.chat-turn{padding:6px 8px;margin:3px 0;border-radius:12px;background:#f4f7fc}.chat-turn p{margin:3px 0;font:12px/1.65 var(--font-ui);white-space:pre-wrap;overflow-wrap:anywhere}.chat-question{color:#657d9e}.chat-reply{color:#34435c}#quick-form .chat-turn button{min-height:25px;padding:2px 5px;font-size:10px;width:auto;color:#5278ad;background:#fff;border:1px solid #e0e8f5;border-radius:7px}
+
+#info-dock{display:block;width:302px;max-width:302px;box-sizing:border-box}#dock-normal{display:grid;gap:6px}#dock-normal #dock-actions{display:contents}#dock-normal #quick-form{width:100%;grid-column:auto;grid-row:auto}#dock-card-deck{display:block;min-width:0;max-height:370px;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin}#dock-card-deck .arc-legacy{display:block;width:100%}#dock-card-deck .quick-card,#dock-card-deck #telemetry,#dock-card-deck #music-controls,#dock-card-deck #transfer-indicator{width:100%;max-width:100%;box-sizing:border-box;margin:0}#dock-side-controls{position:absolute;display:flex;flex-direction:column;gap:7px;width:40px;z-index:12;pointer-events:auto}#dock-side-controls button{display:grid;place-items:center;width:40px;min-width:40px;height:40px;border-radius:50%;background:#fff;border:1px solid #dce5f1;color:#6888b7;box-shadow:0 3px 12px #263f6314;font:18px var(--font-ui);padding:0}body.radial-open #dock-side-controls{display:none}#dock-side-controls .arc-host{display:block}#clipboard-panel{width:100%;box-sizing:border-box}#clipboard-panel header{display:flex;align-items:center;justify-content:space-between}#clipboard-panel header strong{font-size:14px}#clipboard-panel button{min-height:30px;border:1px solid #dce5f1;border-radius:9px;background:#fff;color:#526d95;font:12px var(--font-ui);padding:4px 8px}#clipboard-panel p{font-size:11px;color:#8592a5;line-height:1.5}.clipboard-tools{display:flex;gap:6px}.clipboard-detail img{display:block;max-width:100%;max-height:180px;object-fit:contain;border-radius:9px}.clipboard-detail pre{white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;font:12px/1.6 var(--font-ui)}.clipboard-detail button{margin:5px 5px 0 0}body.clipboard-open #info-dock{opacity:1;visibility:visible;pointer-events:auto}#quick-reminder-list{display:block;max-height:190px;overflow:auto;scrollbar-width:thin}#reminder-card{display:block}#reminder-card>button{margin:3px}.bubble-actions{display:flex;gap:5px;margin-top:8px;white-space:normal}.bubble-actions button{min-height:30px;background:#f3f7ff;border:1px solid #dce6f8;color:#5476a7;border-radius:9px;padding:4px 8px;cursor:pointer;font:12px var(--font-ui)}#work-card strong{font-size:13px}#work-card p{font-size:12px;line-height:1.6}
+
+#info-dock{left:calc(50% - 175px);transform:none}
+
+.bubble-actions{position:sticky;bottom:0;background:#fffffff7;padding-top:5px}
+
+/* Direct cards: one scroll surface, no redundant list frame. */
+#dock-normal #dock-actions[hidden]{display:none!important}
+#dock-card-deck{max-height:420px;overflow-x:hidden;padding:3px 2px 7px;box-sizing:border-box}
+#dock-card-deck[data-layout=list]{--fade-top:0px;--fade-bottom:0px;mask-image:linear-gradient(to bottom,transparent,#000 var(--fade-top),#000 calc(100% - var(--fade-bottom)),transparent)}
+#dock-card-deck[data-layout=list][data-top=true]{--fade-top:16px}
+#dock-card-deck[data-layout=list][data-bottom=true]{--fade-bottom:20px}
+#dock-card-deck[data-layout=carousel]{overflow:hidden;max-height:390px;padding:2px}
+.dock-list-cards{display:grid;gap:7px;min-width:0}
+#dock-card-deck [class*="carousel_root"]{gap:8px}
+#dock-card-deck [class*="carousel_track"]{align-items:flex-start}
+#dock-card-deck [class*="carousel_viewport"]{transition:height .18s ease;max-height:332px}
+#dock-card-deck [class*="carousel_slide"]{max-height:330px;overflow-y:auto;scrollbar-width:thin;transform-origin:50% 0}
+#clipboard-timeline{max-height:320px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;margin-top:8px}
+#clipboard-panel [class*="swipe_actions_content"]{padding:0;gap:0}
+#clipboard-panel [class*="swipe_actions_more"]{display:none}
+#clipboard-panel [class*="swipe_actions_row"]{margin-bottom:8px}
+#clipboard-panel [class*="swipe_actions_body"]{width:100%;min-width:0}
+#clipboard-panel .clipboard-entry{padding:8px;width:100%;box-sizing:border-box}
+#clipboard-panel .clipboard-paste{display:block;width:100%;border:0;text-align:left;padding:2px;background:transparent;color:#34435c;cursor:pointer;white-space:pre-wrap;overflow-wrap:anywhere;max-height:165px;overflow:auto;font:13px/1.6 var(--font-ui)}
+#clipboard-panel .clipboard-paste img{display:block;max-width:100%;max-height:150px;margin:auto;object-fit:contain;border-radius:7px}
+.clipboard-entry footer{display:flex;align-items:center;justify-content:space-between;margin-top:5px;color:#8994a5}
+#clipboard-panel .clipboard-entry footer button{display:grid;place-items:center;min-height:28px;width:28px;padding:0;border:0;background:transparent}
+@media(prefers-reduced-motion:reduce){#dock-card-deck [class*="carousel_viewport"]{transition:none}}
+
+#clipboard-panel [class*="swipe_actions_surface"]{border:0;background:transparent;border-radius:0}
+#clipboard-panel [class*="swipe_actions_row"]{border:1px solid #dfe7f3;border-radius:12px;margin-bottom:8px;background:#f8faff}
+#clipboard-panel [class*="swipe_actions_content"]:after{display:none}
+#clipboard-panel .clipboard-paste img{width:100%;min-height:36px}
+
+/* The card deck and its carousel footer share the native dock hit region. */
+#dock-card-deck{pointer-events:auto}
+#dock-card-deck,#dock-card-deck *,#clipboard-timeline,#clipboard-timeline *{scrollbar-width:none}
+#dock-card-deck::-webkit-scrollbar,#dock-card-deck *::-webkit-scrollbar,#clipboard-timeline::-webkit-scrollbar,#clipboard-timeline *::-webkit-scrollbar{display:none;width:0;height:0}
+#dock-side-controls{opacity:0;visibility:hidden;pointer-events:none;transition:opacity .15s}
+body[data-hud-mode=always] #dock-side-controls,body[data-hud-mode=hover].hover #dock-side-controls,body.quick-open:not([data-hud-mode=hidden]) #dock-side-controls,body.clipboard-open #dock-side-controls{opacity:1;visibility:visible;pointer-events:auto}
+body.dragging #dock-side-controls{opacity:0;visibility:hidden;pointer-events:none}
